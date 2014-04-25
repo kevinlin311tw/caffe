@@ -263,9 +263,6 @@ void WindowDataLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
   // for background (non-object) windows. We use an overlap threshold
   // to decide which is which.
 
-  CHECK_EQ(bottom.size(), 0) << "Window data Layer takes no input blobs.";
-  CHECK_EQ(top->size(), 2) << "Window data Layer prodcues two blobs as output.";
-
   // window_file format
   // repeated:
   //    # image_index

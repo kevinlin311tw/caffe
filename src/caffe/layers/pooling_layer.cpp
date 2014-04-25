@@ -16,8 +16,6 @@ namespace caffe {
 template <typename Dtype>
 void PoolingLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 1) << "PoolingLayer takes a single blob as input.";
-  CHECK_EQ(top->size(), 1) << "PoolingLayer takes a single blob as output.";
   kernel_size_ = this->layer_param_.pooling_param().kernel_size();
   stride_ = this->layer_param_.pooling_param().stride();
   pad_ = this->layer_param_.pooling_param().pad();

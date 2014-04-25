@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 
+#include "caffe/filler.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/net.hpp"
 
@@ -43,15 +44,8 @@ class GradientChecker {
       vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top,
       int check_bottom = -1);
 
-  // CheckGradientEltwise can be used to test layers that perform element-wise
-  // computation only (e.g., neuron layers) -- where (d y_i) / (d x_j) = 0 when
-  // i != j.
-  void CheckGradientEltwise(Layer<Dtype>* layer,
-      vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top);
-
   void CheckGradientSingle(Layer<Dtype>* layer, vector<Blob<Dtype>*>* bottom,
-      vector<Blob<Dtype>*>* top, int check_bottom, int top_id,
-      int top_data_id, bool element_wise = false);
+      vector<Blob<Dtype>*>* top, int check_bottom, int top_id, int top_data_id);
 
   // Checks the gradient of a network. This network should not have any data
   // layers or loss layers, since the function does not explicitly deal with
@@ -74,11 +68,9 @@ class GradientChecker {
 template <typename Dtype>
 void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top,
-    int check_bottom, int top_id, int top_data_id, bool element_wise) {
-  if (element_wise) {
+    int check_bottom, int top_id, int top_data_id) {
+  if (layer->ElementwiseOnlyComputation() && top_id >= 0 && top_data_id >= 0) {
     CHECK_EQ(0, layer->blobs().size());
-    CHECK_LE(0, top_id);
-    CHECK_LE(0, top_data_id);
     const int top_count = (*top)[top_id]->count();
     for (int blob_id = 0; blob_id < bottom->size(); ++blob_id) {
       CHECK_EQ(top_count, (*bottom)[blob_id]->count());
@@ -103,19 +95,52 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   Dtype computed_objective = layer->Forward(*bottom, top);
   // Get additional loss from the objective
   computed_objective += GetObjAndGradient(top, top_id, top_data_id);
+  // If the layer claims not to use its bottom and/or top data to compute its
+  // gradient, verify this by corrupting them before running Backward.
+  vector<bool> bottom_used(bottom->size());
+  layer->BackwardUsesBottomData(&bottom_used);
+  vector<bool> top_used(top->size());
+  layer->BackwardUsesTopData(&top_used);
+  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
+  FillerParameter filler_param;
+  filler_param.set_min(-10);
+  filler_param.set_max(10);
+  UniformFiller<Dtype> filler(filler_param);
+  for (int i = 0; i < bottom->size(); ++i) {
+    if (!bottom_used[i]) {
+      // Save a copy of original bottom data before corrupting so that we
+      // can restore it before finite differencing.
+      const bool copy_diff = false;
+      const bool reshape = true;
+      backup_bottom[i].reset(new Blob<Dtype>);
+      backup_bottom[i]->CopyFrom(*(*bottom)[i], copy_diff, reshape);
+      filler.Fill((*bottom)[i]);
+    }
+  }
+  for (int i = 0; i < top->size(); ++i) {
+    if (!top_used[i]) {
+      filler.Fill((*top)[i]);
+    }
+  }
   layer->Backward(*top, true, bottom);
   // Store computed gradients for all checked blobs
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());
   for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
     Blob<Dtype>* current_blob = blobs_to_check[blob_id];
-    computed_gradient_blobs[blob_id].reset(new Blob<Dtype>());
+    computed_gradient_blobs[blob_id].reset(new Blob<Dtype>);
     computed_gradient_blobs[blob_id]->ReshapeLike(*current_blob);
     const int count = blobs_to_check[blob_id]->count();
     const Dtype* diff = blobs_to_check[blob_id]->cpu_diff();
     Dtype* computed_gradients =
         computed_gradient_blobs[blob_id]->mutable_cpu_data();
     caffe_copy(count, diff, computed_gradients);
+  }
+  // Restore original bottom data for finite differencing if we corrupted it.
+  for (int i = 0; i < bottom->size(); ++i) {
+    if (!bottom_used[i]) {
+      (*bottom)[i]->CopyFrom(*backup_bottom[i]);
+    }
   }
   // Compute derivative of top w.r.t. each bottom and parameter input using
   // finite differencing.
@@ -133,7 +158,8 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       // i != top_data_id, we know the derivative is 0 by definition, and simply
       // check that that's true.
       Dtype estimated_gradient = 0;
-      if (!element_wise || (feat_id == top_data_id)) {
+      if (!layer->ElementwiseOnlyComputation() || (top_data_id == feat_id)
+                                               || (top_data_id == -1)) {
         // Do finite differencing.
         // Compute loss with stepsize_ added to input.
         current_blob->mutable_cpu_data()[feat_id] += stepsize_;
@@ -182,20 +208,6 @@ void GradientChecker<Dtype>::CheckGradientExhaustive(Layer<Dtype>* layer,
     for (int j = 0; j < (*top)[i]->count(); ++j) {
       // LOG(ERROR) << "Exhaustive: blob " << i << " data " << j;
       CheckGradientSingle(layer, bottom, top, check_bottom, i, j);
-    }
-  }
-}
-
-template <typename Dtype>
-void GradientChecker<Dtype>::CheckGradientEltwise(Layer<Dtype>* layer,
-    vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top) {
-  layer->SetUp(*bottom, top);
-  CHECK_GT(top->size(), 0) << "Eltwise mode requires at least one top blob.";
-  const int check_bottom = -1;
-  const bool element_wise = true;
-  for (int i = 0; i < top->size(); ++i) {
-    for (int j = 0; j < (*top)[i]->count(); ++j) {
-      CheckGradientSingle(layer, bottom, top, check_bottom, i, j, element_wise);
     }
   }
 }

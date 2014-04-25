@@ -80,7 +80,7 @@ class PowerLayerTest : public ::testing::Test {
       }
     }
     GradientChecker<Dtype> checker(1e-2, 1e-2, 1701, 0., 0.01);
-    checker.CheckGradientEltwise(&layer, &(this->blob_bottom_vec_),
+    checker.CheckGradientExhaustive(&layer, &(this->blob_bottom_vec_),
         &(this->blob_top_vec_));
   }
 

@@ -11,10 +11,6 @@ namespace caffe {
 template <typename Dtype>
 void EltwiseProductLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top) {
-  CHECK_GE(bottom.size(), 2) <<
-      "Eltwise Product Layer takes at least 2 blobs as input.";
-  CHECK_EQ(top->size(), 1) <<
-      "Eltwise Product Layer takes a single blob as output.";
   const int num = bottom[0]->num();
   const int channels = bottom[0]->channels();
   const int height = bottom[0]->height();

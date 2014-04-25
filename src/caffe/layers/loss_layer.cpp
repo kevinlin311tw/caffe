@@ -19,8 +19,6 @@ const float kLOG_THRESHOLD = 1e-20;
 template <typename Dtype>
 void MultinomialLogisticLossLayer<Dtype>::SetUp(
     const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 2) << "Loss Layer takes two blobs as input.";
-  CHECK_EQ(top->size(), 0) << "Loss Layer takes no output.";
   CHECK_EQ(bottom[0]->num(), bottom[1]->num())
       << "The data and label should have the same number.";
   CHECK_EQ(bottom[1]->channels(), 1);
@@ -65,8 +63,6 @@ void MultinomialLogisticLossLayer<Dtype>::Backward_cpu(
 template <typename Dtype>
 void InfogainLossLayer<Dtype>::SetUp(
     const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 2) << "Loss Layer takes two blobs as input.";
-  CHECK_EQ(top->size(), 0) << "Loss Layer takes no output.";
   CHECK_EQ(bottom[0]->num(), bottom[1]->num())
       << "The data and label should have the same number.";
   CHECK_EQ(bottom[1]->channels(), 1);
@@ -126,8 +122,6 @@ void InfogainLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 template <typename Dtype>
 void EuclideanLossLayer<Dtype>::SetUp(
   const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 2) << "Loss Layer takes two blobs as input.";
-  CHECK_EQ(top->size(), 0) << "Loss Layer takes no as output.";
   CHECK_EQ(bottom[0]->num(), bottom[1]->num())
       << "The data and label should have the same number.";
   CHECK_EQ(bottom[0]->channels(), bottom[1]->channels());
@@ -162,8 +156,6 @@ void EuclideanLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 template <typename Dtype>
 void AccuracyLayer<Dtype>::SetUp(
   const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 2) << "Accuracy Layer takes two blobs as input.";
-  CHECK_EQ(top->size(), 1) << "Accuracy Layer takes 1 output.";
   CHECK_EQ(bottom[0]->num(), bottom[1]->num())
       << "The data and label should have the same number.";
   CHECK_EQ(bottom[1]->channels(), 1);

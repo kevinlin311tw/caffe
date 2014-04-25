@@ -53,6 +53,86 @@ class Layer {
   // Writes the layer parameter to a protocol buffer
   virtual void ToProto(LayerParameter* param, bool write_diff = false);
 
+  // Returns the layer type name.
+  virtual inline const char* LayerType() { return ""; }
+
+  // These methods can be overwritten to declare that this layer type expects
+  // a certain number of blobs as input and output.
+  //
+  // ExactNum{Bottom,Top}Blobs return a non-negative number to require an exact
+  // number of bottom/top blobs; the Min/Max versions return a non-negative
+  // number to require a minimum and/or maximum number of blobs.
+  // If Exact is specified, neither Min nor Max should be specified, and vice
+  // versa.  These methods may not rely on SetUp having been called.
+  virtual inline int ExactNumBottomBlobs() { return -1; }
+  virtual inline int MinBottomBlobs() { return -1; }
+  virtual inline int MaxBottomBlobs() { return -1; }
+  virtual inline int ExactNumTopBlobs() { return -1; }
+  virtual inline int MinTopBlobs() { return -1; }
+  virtual inline int MaxTopBlobs() { return -1; }
+
+  virtual void CheckBlobCounts(const vector<Blob<Dtype>*>& bottom,
+                               const vector<Blob<Dtype>*>& top) {
+    if (ExactNumBottomBlobs() >= 0) {
+      CHECK_EQ(ExactNumBottomBlobs(), bottom.size())
+          << LayerType() << " Layer takes " << ExactNumBottomBlobs()
+          << " bottom blob(s) as input.";
+    }
+    if (MinBottomBlobs() >= 0) {
+      CHECK_LE(MinBottomBlobs(), bottom.size())
+          << LayerType() << " Layer takes at least " << MinBottomBlobs()
+          << " bottom blob(s) as input.";
+    }
+    if (MaxBottomBlobs() >= 0) {
+      CHECK_GE(MaxBottomBlobs(), bottom.size())
+          << LayerType() << " Layer takes at most " << MaxBottomBlobs()
+          << " bottom blob(s) as input.";
+    }
+    if (ExactNumTopBlobs() >= 0) {
+      CHECK_EQ(ExactNumTopBlobs(), top.size())
+          << LayerType() << " Layer produces " << ExactNumTopBlobs()
+          << " top blob(s) as output.";
+    }
+    if (MinTopBlobs() >= 0) {
+      CHECK_LE(MinTopBlobs(), top.size())
+          << LayerType() << " Layer produces at least " << MinTopBlobs()
+          << " top blob(s) as output.";
+    }
+    if (MaxTopBlobs() >= 0) {
+      CHECK_GE(MaxTopBlobs(), top.size())
+          << LayerType() << " Layer produces at most " << MaxTopBlobs()
+          << " top blob(s) as output.";
+    }
+  }
+
+  // BackwardUses{Bottom,Top}Data take a pointer to a vector {bottom,top}_used
+  // pre-sized to the number of {bottom,top} vectors provided in the SetUp
+  // method -- which must have been called before using these methods.
+  //
+  // After the call, {bottom,top}_used[i] should be true if and only if this
+  // layer's Backward method uses the data field (i.e., cpu_data() or
+  // gpu_data()) of the ith {bottom,top} blob.
+  //
+  // It is always safe to skip overriding these methods (i.e., set
+  // {bottom,top}_used[i] to true for all i); however, setting to false when
+  // applicable may allow Caffe to perform this layer or an above layer's
+  // computation "in-place" -- using the same blob for bottom & top -- thus
+  // saving memory.
+  virtual void BackwardUsesBottomData(vector<bool>* bottom_used) {
+    bottom_used->assign(bottom_used->size(), true);
+  }
+  virtual void BackwardUsesTopData(vector<bool>* top_used) {
+    top_used->assign(top_used->size(), true);
+  }
+
+  // ElementwiseOnlyComputation should return true if and only if all of this
+  // layer's top and bottom blobs have the same count, and for any feature index
+  // i, top blob feature i depends only on feature i in the bottom blob(s), as
+  // in neuron layers.  This function is used by the GradientChecker -- if
+  // overridden to true, we can shortcut most of the computation (and check
+  // that the layer indeed performs element-wise computation).
+  virtual inline bool ElementwiseOnlyComputation() { return false; }
+
  protected:
   // The protobuf that stores the layer parameters
   LayerParameter layer_param_;
