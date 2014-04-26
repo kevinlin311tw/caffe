@@ -97,28 +97,24 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   computed_objective += GetObjAndGradient(top, top_id, top_data_id);
   // If the layer claims not to use its bottom and/or top data to compute its
   // gradient, verify this by corrupting them before running Backward.
-  vector<bool> bottom_used(bottom->size());
-  layer->BackwardUsesBottomData(&bottom_used);
-  vector<bool> top_used(top->size());
-  layer->BackwardUsesTopData(&top_used);
   vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
   FillerParameter filler_param;
   filler_param.set_min(-10);
   filler_param.set_max(10);
   UniformFiller<Dtype> filler(filler_param);
   for (int i = 0; i < bottom->size(); ++i) {
-    if (!bottom_used[i]) {
+    if (!layer->BackwardUsesBottomData(i)) {
       // Save a copy of original bottom data before corrupting so that we
       // can restore it before finite differencing.
+      backup_bottom[i].reset(new Blob<Dtype>);
       const bool copy_diff = false;
       const bool reshape = true;
-      backup_bottom[i].reset(new Blob<Dtype>);
       backup_bottom[i]->CopyFrom(*(*bottom)[i], copy_diff, reshape);
       filler.Fill((*bottom)[i]);
     }
   }
   for (int i = 0; i < top->size(); ++i) {
-    if (!top_used[i]) {
+    if (!layer->BackwardUsesTopData(i)) {
       filler.Fill((*top)[i]);
     }
   }
@@ -138,7 +134,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   // Restore original bottom data for finite differencing if we corrupted it.
   for (int i = 0; i < bottom->size(); ++i) {
-    if (!bottom_used[i]) {
+    if (!layer->BackwardUsesBottomData(i)) {
       (*bottom)[i]->CopyFrom(*backup_bottom[i]);
     }
   }

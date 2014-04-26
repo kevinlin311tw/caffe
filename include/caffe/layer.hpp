@@ -118,12 +118,8 @@ class Layer {
   // applicable may allow Caffe to perform this layer or an above layer's
   // computation "in-place" -- using the same blob for bottom & top -- thus
   // saving memory.
-  virtual void BackwardUsesBottomData(vector<bool>* bottom_used) {
-    bottom_used->assign(bottom_used->size(), true);
-  }
-  virtual void BackwardUsesTopData(vector<bool>* top_used) {
-    top_used->assign(top_used->size(), true);
-  }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
+  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
 
   // ElementwiseOnlyComputation should return true if and only if all of this
   // layer's top and bottom blobs have the same count, and for any feature index
