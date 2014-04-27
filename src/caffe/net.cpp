@@ -10,7 +10,6 @@
 #include "caffe/layer.hpp"
 #include "caffe/net.hpp"
 #include "caffe/util/io.hpp"
-#include "caffe/util/insert_splits.hpp"
 #include "caffe/util/upgrade_proto.hpp"
 
 using std::make_pair;
@@ -39,7 +38,6 @@ void Net<Dtype>::Init(const NetParameter& in_param,
             << in_param.DebugString();
   // Create a copy of in_param with splits added where necessary.
   NetParameter param;
-  InsertSplits(in_param, &param);
   // Basically, build all the layers and set up its connections.
   name_ = param.name();
   map<string, int> blob_name_to_idx;
