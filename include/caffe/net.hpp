@@ -5,6 +5,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "caffe/blob.hpp"
@@ -13,8 +14,9 @@
 #include "caffe/proto/caffe.pb.h"
 
 using std::map;
-using std::vector;
+using std::pair;
 using std::string;
+using std::vector;
 
 namespace caffe {
 
@@ -100,6 +102,14 @@ class Net {
   const shared_ptr<Blob<Dtype> > blob_by_name(const string& blob_name);
   bool has_layer(const string& layer_name);
   const shared_ptr<Layer<Dtype> > layer_by_name(const string& layer_name);
+  // Access blob metadata, mainly for testing purposes
+  const map<string, int>& blob_names_index() { return blob_names_index_; }
+  const vector<bool>& blob_need_backward() { return blob_need_backward_; }
+  const vector<bool>& blob_data_used_in_backward() {
+    return blob_data_used_in_backward_;
+  }
+  const vector<int>& blob_num_consumers() { return blob_num_consumers_; }
+  const vector<pair<int, int> >& blob_top_idx() { return blob_top_idx_; }
 
  protected:
   // Function to get misc parameters, e.g. the learning rate multiplier and
@@ -117,11 +127,15 @@ class Net {
   vector<string> blob_names_;
   map<string, int> blob_names_index_;
   vector<bool> blob_need_backward_;
+  vector<bool> blob_data_used_in_backward_;
+  vector<int> blob_num_consumers_;
+  vector<pair<int, int> > blob_top_idx_;
   // bottom_vecs stores the vectors containing the input for each layer.
   // They don't actually host the blobs (blobs_ does), so we simply store
   // pointers.
   vector<vector<Blob<Dtype>*> > bottom_vecs_;
   vector<vector<int> > bottom_id_vecs_;
+  vector<vector<bool> > bottom_diff_scales_;
   // top_vecs stores the vectors containing the output for each layer
   vector<vector<Blob<Dtype>*> > top_vecs_;
   vector<vector<int> > top_id_vecs_;

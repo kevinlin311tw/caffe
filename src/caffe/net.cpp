@@ -13,8 +13,9 @@
 #include "caffe/util/insert_splits.hpp"
 #include "caffe/util/upgrade_proto.hpp"
 
-using std::pair;
+using std::make_pair;
 using std::map;
+using std::pair;
 using std::set;
 
 namespace caffe {
@@ -57,6 +58,9 @@ void Net<Dtype>::Init(const NetParameter& in_param,
                         param.input_dim(i * 4 + 3)));
     blobs_.push_back(blob_pointer);
     blob_names_.push_back(blob_name);
+    blob_top_idx_.push_back(make_pair(-1, i));
+    blob_num_consumers_.push_back(0);
+    blob_data_used_in_backward_.push_back(false);
     blob_need_backward_.push_back(param.force_backward());
     net_input_blob_indices_.push_back(i);
     net_input_blobs_.push_back(blob_pointer.get());
@@ -70,6 +74,7 @@ void Net<Dtype>::Init(const NetParameter& in_param,
   top_vecs_.resize(param.layers_size());
   bottom_id_vecs_.resize(param.layers_size());
   top_id_vecs_.resize(param.layers_size());
+  bottom_diff_scales_.resize(param.layers_size());
   for (int i = 0; i < param.layers_size(); ++i) {
     bool in_place = false;
     const LayerParameter& layer_param = param.layers(i);
@@ -81,9 +86,9 @@ void Net<Dtype>::Init(const NetParameter& in_param,
     for (int j = 0; j < layer_param.bottom_size(); ++j) {
       const string& blob_name = layer_param.bottom(j);
       const int blob_id = blob_name_to_idx[blob_name];
-      if (available_blobs.find(blob_name) == available_blobs.end()) {
-        LOG(FATAL) << "Unknown blob input " << blob_name <<
-            " to layer" << j;
+      if (blob_name_to_idx.find(blob_name) == blob_name_to_idx.end()) {
+        LOG(FATAL) << "Unknown blob input " << blob_name
+                   << " to layer " << j;
       }
       LOG(INFO) << layer_param.name() << " <- " << blob_name;
       bottom_vecs_[i].push_back(
@@ -91,13 +96,25 @@ void Net<Dtype>::Init(const NetParameter& in_param,
       bottom_id_vecs_[i].push_back(blob_id);
       // If a blob needs backward, this layer should provide it.
       need_backward |= blob_need_backward_[blob_id];
+      if (++blob_num_consumers_[blob_id] > 1) {
+        // This isn't the first consumer of this blob; accumulate its gradients.
+        bottom_diff_scales_[i].push_back(1);
+      } else {
+        // This is the first time this blob has been consumed; zero it out
+        // before computing the diff.
+        bottom_diff_scales_[i].push_back(0);
+      }
       available_blobs.erase(blob_name);
     }
     for (int j = 0; j < layer_param.top_size(); ++j) {
       const string& blob_name = layer_param.top(j);
-      // Check if we are doing in-place computation
-      if (layer_param.bottom_size() > j &&
-          blob_name == layer_param.bottom(j)) {
+      // Determine if we can do in-place computation. In-place computation
+      // overwrites the ith layer bottom blob's data in the forward pass, and
+      // the top blob's diff in the backward pass. This is only okay if the ith
+      // layer does not use its bottom data in its backward pass, and the
+      // (i-1)th layer does not use its top data in its backward pass.
+      // (Additionally, if any other ...
+      if (layer_param.bottom_size() > j && blob_name == layer_param.bottom(j)) {
         // In-place computation
         LOG(INFO) << layer_param.name() << " -> " << blob_name << " (in-place)";
         in_place = true;
@@ -122,9 +139,13 @@ void Net<Dtype>::Init(const NetParameter& in_param,
         }
         blobs_.push_back(blob_pointer);
         blob_names_.push_back(blob_name);
+        blob_top_idx_.push_back(make_pair(i, j));
         blob_need_backward_.push_back(param.force_backward());
+        blob_data_used_in_backward_.push_back(
+            layers_[i]->BackwardUsesTopData(j));
         blob_name_to_idx[blob_name] = blob_names_.size() - 1;
         available_blobs.insert(blob_name);
+        blob_num_consumers_.push_back(0);
         top_vecs_[i].push_back(blobs_[blob_names_.size() - 1].get());
         top_id_vecs_[i].push_back(blob_names_.size() - 1);
       }

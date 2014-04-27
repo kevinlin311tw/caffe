@@ -2,8 +2,10 @@
 
 #include <google/protobuf/text_format.h>
 #include <leveldb/db.h>
+#include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "caffe/common.hpp"
@@ -19,13 +21,14 @@ template <typename Dtype>
 class NetTest : public ::testing::Test {
  protected:
   virtual void SetUp() {  // Create the leveldb
-    filename_ = tmpnam(NULL);  // get temp name
-    LOG(INFO) << "Using temporary leveldb " << filename_;
+    filename_.reset(new string(tmpnam(NULL)));  // get temp name
+    LOG(INFO) << "Using temporary leveldb " << *filename_;
     leveldb::DB* db;
     leveldb::Options options;
     options.error_if_exists = true;
     options.create_if_missing = true;
-    leveldb::Status status = leveldb::DB::Open(options, filename_, &db);
+    leveldb::Status status =
+        leveldb::DB::Open(options, filename_->c_str(), &db);
     CHECK(status.ok());
     for (int i = 0; i < 5; ++i) {
       Datum datum;
@@ -35,14 +38,22 @@ class NetTest : public ::testing::Test {
       datum.set_width(4);
       std::string* data = datum.mutable_data();
       for (int j = 0; j < 24; ++j) {
-        data->push_back((uint8_t)i);
+        data->push_back(static_cast<uint8_t>(i));
       }
       std::stringstream ss;
       ss << i;
       db->Put(leveldb::WriteOptions(), ss.str(), datum.SerializeAsString());
     }
     delete db;
+  }
 
+  virtual void InitNetFromProto() {
+    NetParameter param;
+    CHECK(google::protobuf::TextFormat::ParseFromString(*proto_, &param));
+    net_.reset(new Net<Dtype>(param));
+  }
+
+  virtual void InitTinyNet() {
     const string& proto_prefix =
         "name: 'TestNetwork' "
         "layers: { "
@@ -82,55 +93,59 @@ class NetTest : public ::testing::Test {
         "  bottom: 'innerproduct' "
         "  bottom: 'label' "
         "} ";
-    proto_ = proto_prefix + "source: '" + string(this->filename_) +
-        "' " + proto_suffix;
+    proto_.reset(new string(proto_prefix + "source: '" + *filename_ +
+                            "' " + proto_suffix));
+    InitNetFromProto();
   }
 
-  char* filename_;
-  string proto_;
+  shared_ptr<string> filename_;
+  shared_ptr<string> proto_;
+  shared_ptr<Net<Dtype> > net_;
 };
 
 typedef ::testing::Types<float, double> Dtypes;
 TYPED_TEST_CASE(NetTest, Dtypes);
 
 TYPED_TEST(NetTest, TestHasBlob) {
-  NetParameter param;
-  CHECK(google::protobuf::TextFormat::ParseFromString(this->proto_, &param));
-  Net<TypeParam> net(param);
-  EXPECT_TRUE(net.has_blob("data"));
-  EXPECT_TRUE(net.has_blob("label"));
-  EXPECT_TRUE(net.has_blob("innerproduct"));
-  EXPECT_FALSE(net.has_blob("loss"));
+  this->InitTinyNet();
+  EXPECT_TRUE(this->net_->has_blob("data"));
+  EXPECT_TRUE(this->net_->has_blob("label"));
+  EXPECT_TRUE(this->net_->has_blob("innerproduct"));
+  EXPECT_FALSE(this->net_->has_blob("loss"));
 }
 
 TYPED_TEST(NetTest, TestGetBlob) {
-  NetParameter param;
-  CHECK(google::protobuf::TextFormat::ParseFromString(this->proto_, &param));
-  Net<TypeParam> net(param);
-  EXPECT_EQ(net.blob_by_name("data"), net.blobs()[0]);
-  EXPECT_EQ(net.blob_by_name("label"), net.blobs()[1]);
-  EXPECT_EQ(net.blob_by_name("innerproduct"), net.blobs()[2]);
-  EXPECT_FALSE(net.blob_by_name("loss"));
+  this->InitTinyNet();
+  EXPECT_EQ(this->net_->blob_by_name("data"), this->net_->blobs()[0]);
+  EXPECT_EQ(this->net_->blob_by_name("label"), this->net_->blobs()[1]);
+  EXPECT_EQ(this->net_->blob_by_name("innerproduct"), this->net_->blobs()[2]);
+  EXPECT_FALSE(this->net_->blob_by_name("loss"));
 }
 
 TYPED_TEST(NetTest, TestHasLayer) {
-  NetParameter param;
-  CHECK(google::protobuf::TextFormat::ParseFromString(this->proto_, &param));
-  Net<TypeParam> net(param);
-  EXPECT_TRUE(net.has_layer("data"));
-  EXPECT_TRUE(net.has_layer("innerproduct"));
-  EXPECT_TRUE(net.has_layer("loss"));
-  EXPECT_FALSE(net.has_layer("label"));
+  this->InitTinyNet();
+  EXPECT_TRUE(this->net_->has_layer("data"));
+  EXPECT_TRUE(this->net_->has_layer("innerproduct"));
+  EXPECT_TRUE(this->net_->has_layer("loss"));
+  EXPECT_FALSE(this->net_->has_layer("label"));
 }
 
 TYPED_TEST(NetTest, TestGetLayerByName) {
-  NetParameter param;
-  CHECK(google::protobuf::TextFormat::ParseFromString(this->proto_, &param));
-  Net<TypeParam> net(param);
-  EXPECT_EQ(net.layer_by_name("data"), net.layers()[0]);
-  EXPECT_EQ(net.layer_by_name("innerproduct"), net.layers()[1]);
-  EXPECT_EQ(net.layer_by_name("loss"), net.layers()[2]);
-  EXPECT_FALSE(net.layer_by_name("label"));
+  this->InitTinyNet();
+  EXPECT_EQ(this->net_->layer_by_name("data"), this->net_->layers()[0]);
+  EXPECT_EQ(this->net_->layer_by_name("innerproduct"), this->net_->layers()[1]);
+  EXPECT_EQ(this->net_->layer_by_name("loss"), this->net_->layers()[2]);
+  EXPECT_FALSE(this->net_->layer_by_name("label"));
+}
+
+TYPED_TEST(NetTest, TestBlobNumConsumers) {
+  this->InitTinyNet();
+  const map<string, int>& blob_names_index = this->net_->blob_names_index();
+  const vector<int>& blob_num_consumers = this->net_->blob_num_consumers();
+  EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("data")->second]);
+  EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("label")->second]);
+  EXPECT_EQ(1,
+            blob_num_consumers[blob_names_index.find("innerproduct")->second]);
 }
 
 }  // namespace caffe
