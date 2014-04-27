@@ -105,19 +105,38 @@ class Layer {
     }
   }
 
-  // BackwardUses{Bottom,Top}Data take a pointer to a vector {bottom,top}_used
-  // pre-sized to the number of {bottom,top} vectors provided in the SetUp
-  // method -- which must have been called before using these methods.
+  // ForwardReusesBottomData(i) should return true if and only if this layer's
+  // Forward method requires bottom[i] and top[i] to point to different memory
+  // locations, e.g., in a pooling layer when the bottom is reused to compute
+  // multiple top indices in a neighborhood.
   //
-  // After the call, {bottom,top}_used[i] should be true if and only if this
+  // BackwardUses{Bottom,Top}Data(i) should return true if and only if this
   // layer's Backward method uses the data field (i.e., cpu_data() or
   // gpu_data()) of the ith {bottom,top} blob.
   //
-  // It is always safe to skip overriding these methods (i.e., set
-  // {bottom,top}_used[i] to true for all i); however, setting to false when
-  // applicable may allow Caffe to perform this layer or an above layer's
-  // computation "in-place" -- using the same blob for bottom & top -- thus
-  // saving memory.
+  // It is always safe to skip overriding these methods (i.e., always return
+  // true); however, returning false when applicable may allow Caffe to perform
+  // this layer or an above layer's computation "in-place" -- using the same
+  // blob for bottom & top -- thus saving memory.
+  //
+  // In any given layer, we will do Forward in-place computation at index i --
+  // overwriting bottom blob i's data with the output top blob i's data, where
+  // the source of bottom blob i is top blob j in layer "producer_layer":
+  // if all of these conditions hold:
+  //     ! ForwardReusesBottomData(i)
+  //     ! BackwardUsesBottomData(i)
+  //     ! producer_layer->BackwardUsesTopData(j) // where producer_layer
+  //         // is a pointer to the layer producing the source for my input
+  //         // bottom blob i as its top blob j
+  //     ! producer_layer->force_no_overwrite_top_data(i)
+  // Furthermore, we will do Backward in-place computation at index i --
+  // overwriting top blob i's diff with botttom blob i's diff -- if all of these
+  // conditions hold:
+  //     ! BackwardReusesTopDiff(i)
+  //     for each consumer_layer taking my top blob i as their bottom blob j:
+  //       ! consumer_layer-> force_no_overwrite_bottom_diff(j)
+  virtual inline bool ForwardReusesBottomData(int bottom_index) { return true; }
+  virtual inline bool BackwardReusesTopDiff(int top_index) { return true; }
   virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
   virtual inline bool BackwardUsesTopData(int top_index) { return true; }
 

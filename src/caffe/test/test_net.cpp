@@ -55,7 +55,7 @@ class NetTest : public ::testing::Test {
 
   virtual void InitTinyNet() {
     const string& proto_prefix =
-        "name: 'TestNetwork' "
+        "name: 'TinyTestNetwork' "
         "layers: { "
         "  name: 'data' "
         "  type: DATA "
@@ -92,6 +92,46 @@ class NetTest : public ::testing::Test {
         "  type: SOFTMAX_LOSS "
         "  bottom: 'innerproduct' "
         "  bottom: 'label' "
+        "} ";
+    proto_.reset(new string(proto_prefix + "source: '" + *filename_ +
+                            "' " + proto_suffix));
+    InitNetFromProto();
+  }
+
+  virtual void InitTrickyNet() {
+    const string& proto_prefix =
+        "name: 'TrickyTestNetwork' "
+        "layers: { "
+        "  name: 'data' "
+        "  type: DATA "
+        "  data_param { ";
+    const string& proto_suffix =
+        "    batch_size: 1 "
+        "  } "
+        "  top: 'data' "
+        "  top: 'label' "
+        "} "
+        "layers: { "
+        "  name: 'eltproduct' "
+        "  type: ELTWISE_PRODUCT "
+        "  bottom: 'data' "
+        "  bottom: 'data' "
+        "  bottom: 'data' "
+        "  bottom: 'data' "
+        "  top: 'eltwiseproduct' "
+        "} "
+        "layers: { "
+        "  name: 'loss' "
+        "  type: SOFTMAX_LOSS "
+        "  bottom: 'eltwiseproduct' "
+        "  bottom: 'label' "
+        "} "
+        "layers: { "
+        "  name: 'accuracy' "
+        "  type: ACCURACY "
+        "  bottom: 'data' "
+        "  bottom: 'label' "
+        "  top: 'accuracy' "
         "} ";
     proto_.reset(new string(proto_prefix + "source: '" + *filename_ +
                             "' " + proto_suffix));
@@ -138,14 +178,26 @@ TYPED_TEST(NetTest, TestGetLayerByName) {
   EXPECT_FALSE(this->net_->layer_by_name("label"));
 }
 
-TYPED_TEST(NetTest, TestBlobNumConsumers) {
+TYPED_TEST(NetTest, TestBlobNumConsumersTinyNet) {
   this->InitTinyNet();
   const map<string, int>& blob_names_index = this->net_->blob_names_index();
   const vector<int>& blob_num_consumers = this->net_->blob_num_consumers();
   EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("data")->second]);
   EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("label")->second]);
   EXPECT_EQ(1,
-            blob_num_consumers[blob_names_index.find("innerproduct")->second]);
+       blob_num_consumers[blob_names_index.find("innerproduct")->second]);
+}
+
+TYPED_TEST(NetTest, TestBlobNumConsumersTrickyNet) {
+  this->InitTrickyNet();
+  const map<string, int>& blob_names_index = this->net_->blob_names_index();
+  const vector<int>& blob_num_consumers = this->net_->blob_num_consumers();
+  EXPECT_EQ(5, blob_num_consumers[blob_names_index.find("data")->second]);
+  EXPECT_EQ(2, blob_num_consumers[blob_names_index.find("label")->second]);
+  EXPECT_EQ(1,
+      blob_num_consumers[blob_names_index.find("eltwiseproduct")->second]);
+  EXPECT_EQ(0,
+      blob_num_consumers[blob_names_index.find("accuracy")->second]);
 }
 
 }  // namespace caffe

@@ -4,6 +4,7 @@
 #define CAFFE_NET_HPP_
 
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,6 +16,7 @@
 
 using std::map;
 using std::pair;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -34,6 +36,13 @@ class Net {
   // memory proportional to max(net_a_blob_size, net_b_blob_size) rather than
   // (net_a_blob_size + net_b_blob_size).
   void Init(const NetParameter& param, Net<Dtype>* memory_share_net = NULL);
+  int AppendTop(const NetParameter& param, const int layer_index,
+      const int top_index);
+  int AppendBottom(const NetParameter& param, const int layer_index,
+      const int bottom_index);
+  void CanonicalBlobName(const size_t max_chars, const char* user_blob_name,
+      const char* layer_name, const int layer_index, const int top_blob_index,
+      char* canonical_blob_name);
 
   // Run forward with the input blobs already fed separately. You can get the
   // input blobs using input_blobs().
@@ -103,13 +112,7 @@ class Net {
   bool has_layer(const string& layer_name);
   const shared_ptr<Layer<Dtype> > layer_by_name(const string& layer_name);
   // Access blob metadata, mainly for testing purposes
-  const map<string, int>& blob_names_index() { return blob_names_index_; }
   const vector<bool>& blob_need_backward() { return blob_need_backward_; }
-  const vector<bool>& blob_data_used_in_backward() {
-    return blob_data_used_in_backward_;
-  }
-  const vector<int>& blob_num_consumers() { return blob_num_consumers_; }
-  const vector<pair<int, int> >& blob_top_idx() { return blob_top_idx_; }
 
  protected:
   // Function to get misc parameters, e.g. the learning rate multiplier and
@@ -124,21 +127,42 @@ class Net {
   // blobs stores the blobs that store intermediate results between the
   // layers.
   vector<shared_ptr<Blob<Dtype> > > blobs_;
+  // blob_names_ lists the canonical blob names, of the form:
+  //   <user blob name>__<layer name>_<layer index>_<top blob index>
   vector<string> blob_names_;
   map<string, int> blob_names_index_;
+  vector<string> user_blob_names_;
+  // blob_name_to_current_index maps user_blob_name -> blob_idx
+  // This changes throughout processing of the NetParameter, as a user_blob_name
+  // can be duplicated -- used as the name of multiple input/top blobs.  When
+  // we see an input/top blob name duplicated, when it is used as a bottom blob,
+  // the name is assumed to refer to the LAST input/top blob specified.
+  map<string, int> user_blob_name_to_current_index_;
   vector<bool> blob_need_backward_;
-  vector<bool> blob_data_used_in_backward_;
-  vector<int> blob_num_consumers_;
-  vector<pair<int, int> > blob_top_idx_;
+  // blob_idx_to_bottom_idx maps blob_idx -> (layer_idx, top_idx)
+  vector<pair<int, int> > blob_top_index_;
+  // blob_idx_to_bottom_idx maps blob_idx ->
+  //     [ (layer_idx_1, bottom_idx_1), (layer_idx_2, bottom_idx_2), ... ]
+  vector<vector<pair<int, int> > > blob_bottom_indices_;
+  // top_idx_to_blob_idx maps (layer_idx, top_idx) -> blob_idx
+  map<pair<int, int>, int> top_index_to_blob_index_;
+  // bottom_idx_to_blob_idx maps (layer_idx, bottom_idx) -> blob_idx
+  map<pair<int, int>, int> bottom_index_to_blob_index_;
   // bottom_vecs stores the vectors containing the input for each layer.
   // They don't actually host the blobs (blobs_ does), so we simply store
   // pointers.
   vector<vector<Blob<Dtype>*> > bottom_vecs_;
   vector<vector<int> > bottom_id_vecs_;
   vector<vector<bool> > bottom_diff_scales_;
+  vector<vector<bool> > need_backward_;
   // top_vecs stores the vectors containing the output for each layer
   vector<vector<Blob<Dtype>*> > top_vecs_;
   vector<vector<int> > top_id_vecs_;
+  // param_vecs stores the vectors containing the learnable parameters for each
+  // layer.
+  vector<vector<Blob<Dtype>*> > param_vecs_;
+  vector<vector<int> > param_id_vecs_;
+  vector<vector<bool> > param_diff_scales_;
   // blob indices for the input and the output of the net
   vector<int> net_input_blob_indices_;
   vector<Blob<Dtype>*> net_input_blobs_;
@@ -150,6 +174,11 @@ class Net {
   vector<float> params_lr_;
   // the weight decay multipliers
   vector<float> params_weight_decay_;
+  // the bytes of memory used by this net
+  size_t memory_used_;
+  // available_blobs contains the input/top blobs that have not been used as a
+  // bottom blob.
+  set<int> available_blobs_;
   DISABLE_COPY_AND_ASSIGN(Net);
 };
 

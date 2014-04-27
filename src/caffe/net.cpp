@@ -14,8 +14,12 @@
 
 using std::make_pair;
 using std::map;
+using std::ostringstream;
 using std::pair;
 using std::set;
+
+const char* kInputLayerName = "_NET_INPUT";
+const int kMaxBlobNameChars = 256;
 
 namespace caffe {
 
@@ -31,122 +35,102 @@ Net<Dtype>::Net(const string& param_file, Net<Dtype>* memory_share_net) {
   Init(param, memory_share_net);
 }
 
+// void Net<Dtype>::Init(const NetParameter& param);
+// Set up the layers, blobs, and connections between layers/blobs.
+//
+// A single "canonical" blob name refers to exactly one (layer_index, top_index)
+// and 0 or more (layer_index, bottom_index).
+//
+// A single "user" blob name (as specified in the proto) may refer to 1 or more
+// "canonical" blob names.  The "or more" is supported mainly for backwards
+// compatibility -- previous versions of Caffe decided whether to do in-place
+// computation based on the user's specification of the same name for the top
+// top and bottom blobs of a layer, but in-place computation is now
+// automatically inferred (see "In-place computation" below), so all top names
+// can be made unique for clarity without any extra memory cost.
+//
+// If a user specifies a blob name as a top blob only once, its canonical name
+// will be set to the user-specified name.  If a blob name is specified as a top
+// more than once, it will map to canonical names of the form
+//     <user-specified blob name>__<layer name>_<layer index>_<top blob index>
+// to guarantee uniqueness.
+//
+//
+///// In-place computation
+//
+// Sometimes a layer's computation can be performed "in-place" -- that is, with
+// memory shared between the input (bottom) and output (top).  There are four
+// Layer functions specifying attributes that are used to infer whether in-place
+// computation can be done -- ForwardReusesBottomData, BackwardReusesTopDiff,
+// BackwardUsesBottomData, & BackwardUsesTopData.  These are detailed in
+// include/caffe/layer.hpp.
+//
+//
+///// Sharing layer outputs (tops) and weights
+//
+// There are two situations when the Backward pass is a bit trickier than usual:
+// (1) when a top blob is used as a bottom blob multiple times, and (2) when
+// a weight blob is shared by two or more layers.  These cases are handled very
+// similarly.  The first time a top blob is used by a layer as a bottom blob,
+// its Backward method directly computes its gradient into its bottom blob's
+// diff field, computing { bottom->diff := my_gradient }.  In later uses, the
+// Backward method accumulates its gradient, computing
+// { bottom->diff += my_gradient }.
 template <typename Dtype>
-void Net<Dtype>::Init(const NetParameter& in_param,
-                      Net<Dtype>* memory_share_net) {
+void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   LOG(INFO) << "Initializing net from parameters: " << std::endl
-            << in_param.DebugString();
-  // Create a copy of in_param with splits added where necessary.
-  NetParameter param;
+            << param.DebugString();
   // Basically, build all the layers and set up its connections.
   name_ = param.name();
-  map<string, int> blob_name_to_idx;
-  set<string> available_blobs;
-  int num_layers = param.layers_size();
+  user_blob_names_.clear();
+  blob_names_.clear();
+  blob_top_index_.clear();
+  blob_bottom_indices_.clear();
+  user_blob_name_to_current_index_.clear();
+  blob_need_backward_.clear();
+  net_input_blob_indices_.clear();
+  net_input_blobs_.clear();
+  layers_.clear();
+  layer_names_.clear();
+  set<string> known_user_blob_names;
+  memory_used_ = 0;
+  // Set up the input blobs
   CHECK_EQ(param.input_size() * 4, param.input_dim_size())
       << "Incorrect bottom blob dimension specifications.";
-  size_t memory_used = 0;
-  // set the input blobs
   for (int i = 0; i < param.input_size(); ++i) {
-    const string& blob_name = param.input(i);
-    shared_ptr<Blob<Dtype> > blob_pointer(
-        new Blob<Dtype>(param.input_dim(i * 4),
-                        param.input_dim(i * 4 + 1),
-                        param.input_dim(i * 4 + 2),
-                        param.input_dim(i * 4 + 3)));
-    blobs_.push_back(blob_pointer);
-    blob_names_.push_back(blob_name);
-    blob_top_idx_.push_back(make_pair(-1, i));
-    blob_num_consumers_.push_back(0);
-    blob_data_used_in_backward_.push_back(false);
-    blob_need_backward_.push_back(param.force_backward());
-    net_input_blob_indices_.push_back(i);
-    net_input_blobs_.push_back(blob_pointer.get());
-    blob_name_to_idx[blob_name] = i;
-    available_blobs.insert(blob_name);
-    memory_used += blob_pointer->count();
+    const int layer_index = -1;  // inputs have fake layer index -1
+    AppendTop(param, layer_index, i);
   }
-  DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
-  // For each layer, set up their input and output
-  bottom_vecs_.resize(param.layers_size());
-  top_vecs_.resize(param.layers_size());
-  bottom_id_vecs_.resize(param.layers_size());
-  top_id_vecs_.resize(param.layers_size());
-  bottom_diff_scales_.resize(param.layers_size());
+  DLOG(INFO) << "Memory required for input: " << memory_used_ * sizeof(Dtype);
+  // Set up the input and output for each layer.
+  int num_layers = param.layers_size();
+  bottom_vecs_.resize(num_layers);
+  bottom_id_vecs_.resize(num_layers);
+  bottom_diff_scales_.resize(num_layers);
+  top_vecs_.resize(num_layers);
+  top_id_vecs_.resize(num_layers);
+  need_backward_.resize(num_layers);
   for (int i = 0; i < param.layers_size(); ++i) {
-    bool in_place = false;
+    bottom_vecs_[i].clear();
+    bottom_id_vecs_[i].clear();
+    bottom_diff_scales_[i].clear();
+    top_vecs_[i].clear();
+    top_id_vecs_[i].clear();
+    need_backward_[i].clear();
+    bool in_place = false; // TODO: implement in_place computation.
     const LayerParameter& layer_param = param.layers(i);
     layers_.push_back(shared_ptr<Layer<Dtype> >(GetLayer<Dtype>(layer_param)));
     layer_names_.push_back(layer_param.name());
     LOG(INFO) << "Creating Layer " << layer_param.name();
-    bool need_backward = param.force_backward();
-    // Figure out this layer's input and output
+    // Go through the layer's inputs
+    bool layer_need_backward = param.force_backward();
     for (int j = 0; j < layer_param.bottom_size(); ++j) {
-      const string& blob_name = layer_param.bottom(j);
-      const int blob_id = blob_name_to_idx[blob_name];
-      if (blob_name_to_idx.find(blob_name) == blob_name_to_idx.end()) {
-        LOG(FATAL) << "Unknown blob input " << blob_name
-                   << " to layer " << j;
-      }
-      LOG(INFO) << layer_param.name() << " <- " << blob_name;
-      bottom_vecs_[i].push_back(
-          blobs_[blob_id].get());
-      bottom_id_vecs_[i].push_back(blob_id);
-      // If a blob needs backward, this layer should provide it.
-      need_backward |= blob_need_backward_[blob_id];
-      if (++blob_num_consumers_[blob_id] > 1) {
-        // This isn't the first consumer of this blob; accumulate its gradients.
-        bottom_diff_scales_[i].push_back(1);
-      } else {
-        // This is the first time this blob has been consumed; zero it out
-        // before computing the diff.
-        bottom_diff_scales_[i].push_back(0);
-      }
-      available_blobs.erase(blob_name);
+      int blob_id = AppendBottom(param, i, j);
+      layer_need_backward |= blob_need_backward_[blob_id];
     }
+    // Go through the layer's outputs
     for (int j = 0; j < layer_param.top_size(); ++j) {
-      const string& blob_name = layer_param.top(j);
-      // Determine if we can do in-place computation. In-place computation
-      // overwrites the ith layer bottom blob's data in the forward pass, and
-      // the top blob's diff in the backward pass. This is only okay if the ith
-      // layer does not use its bottom data in its backward pass, and the
-      // (i-1)th layer does not use its top data in its backward pass.
-      // (Additionally, if any other ...
-      if (layer_param.bottom_size() > j && blob_name == layer_param.bottom(j)) {
-        // In-place computation
-        LOG(INFO) << layer_param.name() << " -> " << blob_name << " (in-place)";
-        in_place = true;
-        available_blobs.insert(blob_name);
-        top_vecs_[i].push_back(
-            blobs_[blob_name_to_idx[blob_name]].get());
-        top_id_vecs_[i].push_back(blob_name_to_idx[blob_name]);
-      } else if (blob_name_to_idx.find(blob_name) != blob_name_to_idx.end()) {
-        // If we are not doing in-place computation but has duplicated blobs,
-        // raise an error.
-        LOG(FATAL) << "Duplicate blobs produced by multiple sources.";
-      } else {
-        // Normal output.
-        LOG(INFO) << layer_param.name() << " -> " << blob_name;
-        shared_ptr<Blob<Dtype> > blob_pointer;
-        if (memory_share_net && memory_share_net->has_blob(blob_name)) {
-          shared_ptr<Blob<Dtype> > memory_share_blob =
-              memory_share_net->blob_by_name(blob_name);
-          blob_pointer.reset(new Blob<Dtype>(*memory_share_blob));
-        } else {
-          blob_pointer.reset(new Blob<Dtype>());
-        }
-        blobs_.push_back(blob_pointer);
-        blob_names_.push_back(blob_name);
-        blob_top_idx_.push_back(make_pair(i, j));
-        blob_need_backward_.push_back(param.force_backward());
-        blob_data_used_in_backward_.push_back(
-            layers_[i]->BackwardUsesTopData(j));
-        blob_name_to_idx[blob_name] = blob_names_.size() - 1;
-        available_blobs.insert(blob_name);
-        blob_num_consumers_.push_back(0);
-        top_vecs_[i].push_back(blobs_[blob_names_.size() - 1].get());
-        top_id_vecs_[i].push_back(blob_names_.size() - 1);
-      }
+      AppendTop(param, i, j);
     }
     // After this layer is connected, set it up.
     // LOG(INFO) << "Setting up " << layer_names_[i];
@@ -159,26 +143,26 @@ void Net<Dtype>::Init(const NetParameter& in_param,
           << top_vecs_[i][topid]->width() << " ("
           << top_vecs_[i][topid]->count() << ")";
       if (!in_place)
-        memory_used += top_vecs_[i][topid]->count();
+        memory_used_ += top_vecs_[i][topid]->count();
     }
     DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
     int blobs_lr_size = layers_[i]->layer_param().blobs_lr_size();
     CHECK(blobs_lr_size == layers_[i]->blobs().size() || blobs_lr_size == 0)
         << "Incorrect blobs lr size: should be either 0 or the same as "
            "the number of the layer's parameter blobs.";
+    // Check if this layer needs backward operation itself
     if (blobs_lr_size) {
-      // Check if this layer needs backward operation itself
       for (int j = 0; j < blobs_lr_size; ++j) {
-        need_backward |= (layers_[i]->layer_param().blobs_lr(j) > 0);
+        layer_need_backward |= (layers_[i]->layer_param().blobs_lr(j) > 0);
       }
     } else if (layers_[i]->blobs().size()) {
       // catch: if a layer param does not specify blobs_lr, we should assume the
       // learning rate to be 1. Thus we will need to perform backward.
-      need_backward = true;
+      layer_need_backward = true;
     }
     // Finally, set the backward flag
-    layer_need_backward_.push_back(need_backward);
-    if (need_backward) {
+    layer_need_backward_.push_back(layer_need_backward);
+    if (layer_need_backward) {
       LOG(INFO) << layer_names_[i] << " needs backward computation.";
       for (int j = 0; j < top_id_vecs_[i].size(); ++j) {
         blob_need_backward_[top_id_vecs_[i][j]] = true;
@@ -188,10 +172,10 @@ void Net<Dtype>::Init(const NetParameter& in_param,
     }
   }
   // In the end, all remaining blobs are considered output blobs.
-  for (set<string>::iterator it = available_blobs.begin();
-      it != available_blobs.end(); ++it) {
+  for (set<int>::iterator it = available_blobs_.begin();
+      it != available_blobs_.end(); ++it) {
     LOG(INFO) << "This network produces output " << *it;
-    net_output_blobs_.push_back(blobs_[blob_name_to_idx[*it]].get());
+    net_output_blobs_.push_back(blobs_[*it].get());
   }
   for (size_t i = 0; i < blob_names_.size(); ++i) {
     blob_names_index_[blob_names_[i]] = i;
@@ -202,6 +186,118 @@ void Net<Dtype>::Init(const NetParameter& in_param,
   GetLearningRateAndWeightDecay();
   LOG(INFO) << "Network initialization done.";
   LOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
+}
+
+
+// Helper for Net::Init: add a new input or top blob to the net.  (Inputs have
+// layer_index == -1, tops have layer_index >= 0.)
+template <typename Dtype>
+int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_index,
+                          const int top_index) {
+  shared_ptr<Blob<Dtype> > blob_pointer;
+  if (layer_index == -1) {
+    blob_pointer.reset(new Blob<Dtype>(param.input_dim(top_index * 4),
+                                       param.input_dim(top_index * 4 + 1),
+                                       param.input_dim(top_index * 4 + 2),
+                                       param.input_dim(top_index * 4 + 3)));
+  } else {
+    blob_pointer.reset(new Blob<Dtype>());
+  }
+  const int blob_id = blobs_.size();
+  blobs_.push_back(blob_pointer);
+  string user_blob_name;
+  LayerParameter layer_param;
+  if (layer_index == -1) {
+    user_blob_name = param.input(top_index);
+  } else {
+    user_blob_name = layer_param.top(top_index);
+    layer_param.CopyFrom(param.layers(layer_index));
+  }
+  user_blob_names_.push_back(user_blob_name);
+  string blob_name;
+  ostringstream canonical_blob_name_display;
+  if (user_blob_name_to_current_index_.find(user_blob_name) ==
+      user_blob_name_to_current_index_.end()) {
+    // First occurrence of this user_blob_name -- let the canonical name simply
+    // be user_blob_name.
+    blob_name = user_blob_name;
+  } else {
+    string layer_name = (layer_index == -1) ?
+                        kInputLayerName : layer_param.name();
+    char* blob_name_c_str = new char[kMaxBlobNameChars];
+    CanonicalBlobName(kMaxBlobNameChars, user_blob_name.c_str(),
+        layer_name.c_str(), layer_index, top_index, blob_name_c_str);
+    blob_name = blob_name_c_str;
+    canonical_blob_name_display << " (" << blob_name << ")";
+  }
+  LOG(INFO) << layer_param.name() << " -> " << blob_name
+            << canonical_blob_name_display;
+  blob_names_.push_back(blob_name);
+  user_blob_name_to_current_index_[user_blob_name] = blob_id;
+  blob_top_index_.push_back(make_pair(layer_index, top_index));
+  vector<pair<int, int> > bottom_indices;
+  blob_bottom_indices_.push_back(bottom_indices);
+  blob_need_backward_.push_back(param.force_backward());
+  available_blobs_.insert(blob_id);
+  memory_used_ += blob_pointer->count();
+  if (layer_index == -1) {
+    net_input_blob_indices_.push_back(blob_id);
+    net_input_blobs_.push_back(blob_pointer.get());
+  } else {
+    const bool in_place = false;  // TODO: implement in_place computation.
+    top_id_vecs_[layer_index].push_back(blob_id);
+    top_vecs_[layer_index].push_back(blob_pointer.get());
+  }
+  return blob_id;
+}
+
+
+// Helper for Net::Init: add a new bottom blob to the net.
+template <typename Dtype>
+int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_index,
+                             const int bottom_index) {
+  LayerParameter layer_param(param.layers(layer_index));
+  const string& user_blob_name = layer_param.bottom(bottom_index);
+  if (user_blob_name_to_current_index_.find(user_blob_name) ==
+      user_blob_name_to_current_index_.end()) {
+    LOG(FATAL) << "Unknown blob input " << user_blob_name
+               << " to layer " << layer_index;
+  }
+  const int blob_id = user_blob_name_to_current_index_[user_blob_name];
+  const string& blob_name = blob_names_[blob_id];
+  ostringstream canonical_blob_name_display;
+  if (blob_name != user_blob_name) {
+    canonical_blob_name_display << " (" << blob_name << ")";
+  }
+  LOG(INFO) << layer_param.name() << " <- " << user_blob_name
+            << canonical_blob_name_display;
+  bottom_vecs_[layer_index].push_back(blobs_[blob_id].get());
+  bottom_id_vecs_[layer_index].push_back(blob_id);
+  const int current_num_consumers = blob_bottom_indices_[blob_id].size();
+  blob_bottom_indices_[blob_id].push_back(make_pair(layer_index, bottom_index));
+  if (current_num_consumers) {
+    // This isn't the first consumer of this blob; accumulate its gradients.
+    bottom_diff_scales_[layer_index].push_back(1);
+  } else {
+    // This is the first time this blob has been consumed; zero it out
+    // before computing the diff.
+    bottom_diff_scales_[layer_index].push_back(0);
+  }
+  available_blobs_.erase(blob_id);
+  bool need_backward = param.force_backward() || blob_need_backward_[blob_id];
+  need_backward_[layer_index].push_back(need_backward);
+  return blob_id;
+}
+
+
+template <typename Dtype>
+void Net<Dtype>::CanonicalBlobName(const size_t max_chars,
+    const char* user_blob_name, const char* layer_name, const int layer_index,
+    const int top_blob_index, char* canonical_blob_name) {
+  const size_t num_chars = snprintf(canonical_blob_name, max_chars,
+      "%s__%s_%d_%d", user_blob_name, layer_name, layer_index, top_blob_index);
+  // Check that the blob name was not truncated.
+  CHECK_LE(num_chars, max_chars);
 }
 
 
