@@ -89,6 +89,26 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     CHECK(check_bottom < bottom->size());
     blobs_to_check.push_back((*bottom)[check_bottom]);
   }
+  // Add randomly generated noise to the diff of each of the blobs_to_check --
+  // we will subtract this off after the gradient is computed.  This ensures
+  // that a blob increments the diff blob by its gradient, rather than just
+  // overwriting it.
+  Caffe::set_random_seed(seed_);
+  FillerParameter increment_filler_param;
+  increment_filler_param.set_mean(10);
+  increment_filler_param.set_std(1);
+  GaussianFiller<Dtype> increment_filler(increment_filler_param);
+  vector<shared_ptr<Blob<Dtype> > > increment_blobs(blobs_to_check.size());
+  for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
+    Blob<Dtype>* current_blob = blobs_to_check[blob_id];
+    increment_blobs[blob_id].reset(new Blob<Dtype>());
+    increment_blobs[blob_id]->ReshapeLike(*current_blob);
+    increment_filler.Fill(increment_blobs[blob_id].get());
+    const int count = current_blob->count();
+    const Dtype* increment = increment_blobs[blob_id]->cpu_data();
+    Dtype* current_diff = current_blob->mutable_cpu_diff();
+    caffe_copy(count, increment, current_diff);
+  }
   // Compute the gradient analytically using Backward
   Caffe::set_random_seed(seed_);
   // Get any loss from the layer
@@ -118,9 +138,13 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       filler.Fill((*top)[i]);
     }
   }
+  for (int i = 0; i < layer->blobs().size(); ++i) {
+    layer->set_param_accum_down(i, true);
+  }
   vector<bool> propagate_down(bottom->size(), true);
-  layer->Backward(*top, propagate_down, bottom);
-  // Store computed gradients for all checked blobs
+  vector<bool> accum_down(bottom->size(), true);
+  layer->Backward(*top, propagate_down, accum_down, bottom);
+  // Store computed gradients for all checked blobs, subtracting the increment.
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());
   for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
@@ -129,9 +153,10 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     computed_gradient_blobs[blob_id]->ReshapeLike(*current_blob);
     const int count = blobs_to_check[blob_id]->count();
     const Dtype* diff = blobs_to_check[blob_id]->cpu_diff();
+    const Dtype* increment = increment_blobs[blob_id]->cpu_data();
     Dtype* computed_gradients =
         computed_gradient_blobs[blob_id]->mutable_cpu_data();
-    caffe_copy(count, diff, computed_gradients);
+    caffe_sub(count, diff, increment, computed_gradients);
   }
   // Restore original bottom data for finite differencing if we corrupted it.
   for (int i = 0; i < bottom->size(); ++i) {

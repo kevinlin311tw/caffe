@@ -111,6 +111,7 @@ class Net {
   const vector<vector<pair<int, int> > >& blob_bottom_indices() {
     return blob_bottom_indices_;
   }
+  const vector<vector<bool> >& bottom_diff_scales() { return bottom_diff_scales_; }
 
  protected:
   // Function to get misc parameters, e.g. the learning rate multiplier and

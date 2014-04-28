@@ -235,4 +235,23 @@ TYPED_TEST(NetTest, TestBlobTopIndexTrickyNet) {
   EXPECT_EQ(make_pair(3, 0), accuracy_top_index);
 }
 
+TYPED_TEST(NetTest, TestBlobBottomDiffScales) {
+  this->InitTrickyNet();
+  const vector<vector<bool> >& bottom_diff_scales =
+      this->net_->bottom_diff_scales();
+  EXPECT_EQ(4, bottom_diff_scales.size());
+  EXPECT_EQ(0, bottom_diff_scales[0].size());
+  EXPECT_EQ(4, bottom_diff_scales[1].size());
+  EXPECT_EQ(2, bottom_diff_scales[2].size());
+  EXPECT_EQ(2, bottom_diff_scales[3].size());
+  EXPECT_EQ(0, bottom_diff_scales[1][0]);
+  EXPECT_EQ(1, bottom_diff_scales[1][1]);
+  EXPECT_EQ(1, bottom_diff_scales[1][2]);
+  EXPECT_EQ(1, bottom_diff_scales[1][3]);
+  EXPECT_EQ(0, bottom_diff_scales[2][0]);
+  EXPECT_EQ(0, bottom_diff_scales[2][1]);
+  EXPECT_EQ(1, bottom_diff_scales[3][0]);
+  EXPECT_EQ(1, bottom_diff_scales[3][1]);
+}
+
 }  // namespace caffe

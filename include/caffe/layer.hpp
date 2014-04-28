@@ -65,14 +65,14 @@ class Layer {
         if (!accum_bottom_blobs_[bottom_id]) {
           accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
           accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-          accum_bottom_blobs_[bottom_id]->ShareData(*(*bottom)[bottom_id]);
+          accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
         }
         orig_bottom[bottom_id] = (*bottom)[bottom_id];
         (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
       }
     }
     const int num_param = blobs_.size();
-    vector<Blob<Dtype>*> orig_param(num_param);
+    vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
     for (int param_id = 0; param_id < num_param; ++param_id) {
       if (param_accum_down_[param_id]) {
         if (accum_param_blobs_.size() <= param_id) {
@@ -81,17 +81,17 @@ class Layer {
         if (!accum_param_blobs_[param_id]) {
           accum_param_blobs_[param_id].reset(new Blob<Dtype>());
           accum_param_blobs_[param_id]->ReshapeLike(*blobs_[param_id]);
-          accum_param_blobs_[param_id]->ShareData(*blobs_[param_id]);
+          accum_param_blobs_[param_id]->CopyFrom(*blobs_[param_id]);
         }
         orig_param[param_id] = blobs_[param_id];
-        blobs_[param_id] = accum_param_blobs_[param_id].get();
+        blobs_[param_id] = accum_param_blobs_[param_id];
       }
     }
     Backward_cpu(top, propagate_down, bottom);
     for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
       if (accum_down[bottom_id]) {
-        (*bottom)[bottom_id] = orig_bottom;
-        const int count = (*bottom)[bottom_id];
+        (*bottom)[bottom_id] = orig_bottom[bottom_id];
+        const int count = (*bottom)[bottom_id]->count();
         const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->cpu_data();
         Dtype* diff = (*bottom)[bottom_id]->mutable_cpu_data();
         caffe_add(count, accum_diff, diff, diff);
@@ -99,7 +99,7 @@ class Layer {
     }
     for (int param_id = 0; param_id < num_param; ++param_id) {
       if (param_accum_down_[param_id]) {
-        blobs_[param_id] = orig_param;
+        blobs_[param_id] = orig_param[param_id];
         const int count = blobs_[param_id]->count();
         const Dtype* accum_diff = accum_param_blobs_[param_id]->cpu_data();
         Dtype* diff = blobs_[param_id]->mutable_cpu_data();
@@ -121,14 +121,14 @@ class Layer {
         if (!accum_bottom_blobs_[bottom_id]) {
           accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
           accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-          accum_bottom_blobs_[bottom_id]->ShareData(*(*bottom)[bottom_id]);
+          accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
         }
         orig_bottom[bottom_id] = (*bottom)[bottom_id];
         (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
       }
     }
     const int num_param = blobs_.size();
-    vector<Blob<Dtype>*> orig_param(num_param);
+    vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
     for (int param_id = 0; param_id < num_param; ++param_id) {
       if (param_accum_down_[param_id]) {
         if (accum_param_blobs_.size() <= param_id) {
@@ -137,29 +137,29 @@ class Layer {
         if (!accum_param_blobs_[param_id]) {
           accum_param_blobs_[param_id].reset(new Blob<Dtype>());
           accum_param_blobs_[param_id]->ReshapeLike(*blobs_[param_id]);
-          accum_param_blobs_[param_id]->ShareData(*blobs_[param_id]);
+          accum_param_blobs_[param_id]->CopyFrom(*blobs_[param_id]);
         }
         orig_param[param_id] = blobs_[param_id];
-        blobs_[param_id] = accum_param_blobs_[param_id].get();
+        blobs_[param_id] = accum_param_blobs_[param_id];
       }
     }
     Backward_gpu(top, propagate_down, bottom);
     for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
       if (accum_down[bottom_id]) {
-        (*bottom)[bottom_id] = orig_bottom;
-        const int count = (*bottom)[bottom_id];
+        (*bottom)[bottom_id] = orig_bottom[bottom_id];
+        const int count = (*bottom)[bottom_id]->count();
         const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->gpu_data();
         Dtype* diff = (*bottom)[bottom_id]->mutable_gpu_data();
-        caffe_gpu_add(count, accum_diff, diff, diff);
+        caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
       }
     }
     for (int param_id = 0; param_id < num_param; ++param_id) {
       if (param_accum_down_[param_id]) {
-        blobs_[param_id] = orig_param;
+        blobs_[param_id] = orig_param[param_id];
         const int count = blobs_[param_id]->count();
         const Dtype* accum_diff = accum_param_blobs_[param_id]->gpu_data();
         Dtype* diff = blobs_[param_id]->mutable_gpu_data();
-        caffe_gpu_add(count, accum_diff, diff, diff);
+        caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
       }
     }
   }
@@ -274,6 +274,12 @@ class Layer {
       param_propagate_down_.resize(index + 1);
     }
     param_propagate_down_[index] = value;
+  }
+  inline void set_param_accum_down(int index, bool value) {
+    if (param_accum_down_.size() <= index) {
+      param_accum_down_.resize(index + 1);
+    }
+    param_accum_down_[index] = value;
   }
 
  protected:
