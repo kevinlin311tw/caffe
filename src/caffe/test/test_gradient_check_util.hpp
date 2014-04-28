@@ -78,16 +78,19 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   // First, figure out what blobs we need to check against.
   vector<Blob<Dtype>*> blobs_to_check;
+  vector<bool> propagate_down(bottom->size(), false);
   for (int i = 0; i < layer->blobs().size(); ++i) {
     blobs_to_check.push_back(layer->blobs()[i].get());
   }
   if (check_bottom < 0) {
     for (int i = 0; i < bottom->size(); ++i) {
       blobs_to_check.push_back((*bottom)[i]);
+      propagate_down[i] = true;
     }
   } else {
     CHECK(check_bottom < bottom->size());
     blobs_to_check.push_back((*bottom)[check_bottom]);
+    propagate_down[check_bottom] = true;
   }
   // Add randomly generated noise to the diff of each of the blobs_to_check --
   // we will subtract this off after the gradient is computed.  This ensures
@@ -141,7 +144,6 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   for (int i = 0; i < layer->blobs().size(); ++i) {
     layer->set_param_accum_down(i, true);
   }
-  vector<bool> propagate_down(bottom->size(), true);
   vector<bool> accum_down(bottom->size(), true);
   layer->AccumBackward(*top, propagate_down, accum_down, bottom);
   // Store computed gradients for all checked blobs, subtracting the increment.

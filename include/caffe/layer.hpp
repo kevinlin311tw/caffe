@@ -294,7 +294,7 @@ void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
   const int num_bottom = bottom->size();
   vector<Blob<Dtype>*> orig_bottom(num_bottom);
   for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-    if (accum_down[bottom_id]) {
+    if (accum_down[bottom_id] && propagate_down[bottom_id]) {
       if (accum_bottom_blobs_.size() <= bottom_id) {
         accum_bottom_blobs_.resize(bottom_id + 1);
       }
@@ -310,7 +310,7 @@ void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
   const int num_param = blobs_.size();
   vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
   for (int param_id = 0; param_id < num_param; ++param_id) {
-    if (param_accum_down_[param_id]) {
+    if (param_accum_down_[param_id] && param_propagate_down_[param_id]) {
       if (accum_param_blobs_.size() <= param_id) {
         accum_param_blobs_.resize(param_id + 1);
       }
@@ -325,7 +325,7 @@ void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
   }
   Backward_cpu(top, propagate_down, bottom);
   for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-    if (accum_down[bottom_id]) {
+    if (accum_down[bottom_id] && propagate_down[bottom_id]) {
       (*bottom)[bottom_id] = orig_bottom[bottom_id];
       const int count = (*bottom)[bottom_id]->count();
       const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->cpu_diff();
@@ -334,7 +334,7 @@ void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
     }
   }
   for (int param_id = 0; param_id < num_param; ++param_id) {
-    if (param_accum_down_[param_id]) {
+    if (param_accum_down_[param_id] && param_propagate_down_[param_id]) {
       blobs_[param_id] = orig_param[param_id];
       const int count = blobs_[param_id]->count();
       const Dtype* accum_diff = accum_param_blobs_[param_id]->cpu_diff();
