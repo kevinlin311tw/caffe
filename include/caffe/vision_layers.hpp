@@ -14,6 +14,7 @@
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
+#include "caffe/filler.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 
@@ -303,6 +304,28 @@ class DataLayer : public Layer<Dtype> {
   Blob<Dtype> data_mean_;
   bool output_labels_;
   Caffe::Phase phase_;
+};
+
+template <typename Dtype>
+class DummyDataLayer : public Layer<Dtype> {
+ public:
+  explicit DummyDataLayer(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual ~DummyDataLayer() {}
+  virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+
+ protected:
+  virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top);
+  virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      vector<Blob<Dtype>*>* top) { return Forward_cpu(bottom, top); }
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+
+  vector<shared_ptr<Filler<Dtype> > > fillers_;
 };
 
 template <typename Dtype>
