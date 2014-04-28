@@ -44,7 +44,7 @@ Dtype MultinomialLogisticLossLayer<Dtype>::Forward_cpu(
 
 template <typename Dtype>
 void MultinomialLogisticLossLayer<Dtype>::Backward_cpu(
-    const vector<Blob<Dtype>*>& top, const bool propagate_down,
+    const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
   const Dtype* bottom_data = (*bottom)[0]->cpu_data();
   const Dtype* bottom_label = (*bottom)[1]->cpu_data();
@@ -100,7 +100,7 @@ Dtype InfogainLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void InfogainLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down,
+    const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
   const Dtype* bottom_data = (*bottom)[0]->cpu_data();
   const Dtype* bottom_label = (*bottom)[1]->cpu_data();
@@ -145,7 +145,7 @@ Dtype EuclideanLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void EuclideanLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down, vector<Blob<Dtype>*>* bottom) {
+    const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
   int count = (*bottom)[0]->count();
   int num = (*bottom)[0]->num();
   // Compute the gradient
@@ -228,7 +228,7 @@ Dtype HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down, vector<Blob<Dtype>*>* bottom) {
+    const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
   Dtype* bottom_diff = (*bottom)[0]->mutable_cpu_diff();
   const Dtype* label = (*bottom)[1]->cpu_data();
   int num = (*bottom)[0]->num();

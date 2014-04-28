@@ -154,7 +154,7 @@ class Net {
   vector<vector<Blob<Dtype>*> > bottom_vecs_;
   vector<vector<int> > bottom_id_vecs_;
   vector<vector<bool> > bottom_diff_scales_;
-  vector<vector<bool> > need_backward_;
+  vector<vector<bool> > bottom_need_backward_;
   // top_vecs stores the vectors containing the output for each layer
   vector<vector<Blob<Dtype>*> > top_vecs_;
   vector<vector<int> > top_id_vecs_;
@@ -163,6 +163,7 @@ class Net {
   vector<vector<Blob<Dtype>*> > param_vecs_;
   vector<vector<int> > param_id_vecs_;
   vector<vector<bool> > param_diff_scales_;
+  vector<vector<bool> > param_need_backward_;
   // blob indices for the input and the output of the net
   vector<int> net_input_blob_indices_;
   vector<Blob<Dtype>*> net_input_blobs_;

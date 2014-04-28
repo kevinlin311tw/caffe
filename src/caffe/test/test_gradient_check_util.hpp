@@ -118,7 +118,8 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       filler.Fill((*top)[i]);
     }
   }
-  layer->Backward(*top, true, bottom);
+  vector<bool> propagate_down(bottom->size(), true);
+  layer->Backward(*top, propagate_down, bottom);
   // Store computed gradients for all checked blobs
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());

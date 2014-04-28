@@ -48,7 +48,7 @@ Dtype SigmoidCrossEntropyLossLayer<Dtype>::Forward_cpu(
 
 template <typename Dtype>
 void SigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
-    const vector<Blob<Dtype>*>& top, const bool propagate_down,
+    const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
   // First, compute the diff
   const int count = (*bottom)[0]->count();

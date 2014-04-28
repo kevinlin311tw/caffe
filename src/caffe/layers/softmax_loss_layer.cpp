@@ -41,7 +41,7 @@ Dtype SoftmaxWithLossLayer<Dtype>::Forward_cpu(
 
 template <typename Dtype>
 void SoftmaxWithLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down,
+    const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
   // Compute the diff
   Dtype* bottom_diff = (*bottom)[0]->mutable_cpu_diff();

@@ -3,6 +3,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "caffe/common.hpp"
@@ -92,7 +93,9 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   net_input_blobs_.clear();
   layers_.clear();
   layer_names_.clear();
-  set<string> known_user_blob_names;
+  net_output_blobs_.clear();
+  blob_names_index_.clear();
+  layer_names_index_.clear();
   memory_used_ = 0;
   // Set up the input blobs
   CHECK_EQ(param.input_size() * 4, param.input_dim_size())
@@ -109,15 +112,15 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   bottom_diff_scales_.resize(num_layers);
   top_vecs_.resize(num_layers);
   top_id_vecs_.resize(num_layers);
-  need_backward_.resize(num_layers);
+  bottom_need_backward_.resize(num_layers);
   for (int i = 0; i < param.layers_size(); ++i) {
     bottom_vecs_[i].clear();
     bottom_id_vecs_[i].clear();
     bottom_diff_scales_[i].clear();
     top_vecs_[i].clear();
     top_id_vecs_[i].clear();
-    need_backward_[i].clear();
-    bool in_place = false; // TODO: implement in_place computation.
+    bottom_need_backward_[i].clear();
+    bool in_place = false;  // TODO: implement in_place computation.
     const LayerParameter& layer_param = param.layers(i);
     layers_.push_back(shared_ptr<Layer<Dtype> >(GetLayer<Dtype>(layer_param)));
     layer_names_.push_back(layer_param.name());
@@ -153,7 +156,9 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     // Check if this layer needs backward operation itself
     if (blobs_lr_size) {
       for (int j = 0; j < blobs_lr_size; ++j) {
-        layer_need_backward |= (layers_[i]->layer_param().blobs_lr(j) > 0);
+        const bool learn_blob = (layers_[i]->layer_param().blobs_lr(j) > 0);
+        layer_need_backward |= learn_blob;
+        layers_[i]->set_param_propagate_down(j, learn_blob);
       }
     } else if (layers_[i]->blobs().size()) {
       // catch: if a layer param does not specify blobs_lr, we should assume the
@@ -285,7 +290,7 @@ int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_index,
   }
   available_blobs_.erase(blob_id);
   bool need_backward = param.force_backward() || blob_need_backward_[blob_id];
-  need_backward_[layer_index].push_back(need_backward);
+  bottom_need_backward_[layer_index].push_back(need_backward);
   return blob_id;
 }
 
@@ -390,7 +395,8 @@ template <typename Dtype>
 void Net<Dtype>::Backward() {
   for (int i = layers_.size() - 1; i >= 0; --i) {
     if (layer_need_backward_[i]) {
-      layers_[i]->Backward(top_vecs_[i], true, &bottom_vecs_[i]);
+      layers_[i]->Backward(top_vecs_[i], bottom_need_backward_[i],
+                           &bottom_vecs_[i]);
     }
   }
 }

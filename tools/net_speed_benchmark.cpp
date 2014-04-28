@@ -87,7 +87,8 @@ int main(int argc, char** argv) {
     const string& layername = layers[i]->layer_param().name();
     timer.Start();
     for (int j = 0; j < total_iter; ++j) {
-      layers[i]->Backward(top_vecs[i], true, &bottom_vecs[i]);
+      vector<bool> propagate_down(bottom_vecs[i].size(), true);
+      layers[i]->Backward(top_vecs[i], propagate_down, &bottom_vecs[i]);
     }
     LOG(ERROR) << layername << "\tbackward: "
         << timer.MilliSeconds() << " milli seconds.";

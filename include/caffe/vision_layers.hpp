@@ -54,9 +54,9 @@ class BNLLLayer : public NeuronLayer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -76,9 +76,9 @@ class DropoutLayer : public NeuronLayer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   shared_ptr<SyncedMemory> rand_vec_;
   Dtype threshold_;
@@ -107,9 +107,9 @@ class PowerLayer : public NeuronLayer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   Dtype power_;
   Dtype scale_;
@@ -133,9 +133,9 @@ class ReLULayer : public NeuronLayer<Dtype> {
       vector<Blob<Dtype>*>* top);
 
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -153,9 +153,9 @@ class SigmoidLayer : public NeuronLayer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -173,9 +173,9 @@ class TanHLayer : public NeuronLayer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 
@@ -197,7 +197,7 @@ class AccuracyLayer : public Layer<Dtype> {
       vector<Blob<Dtype>*>* top);
   // The accuracy layer should not be used to compute backward operations.
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) {
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
     NOT_IMPLEMENTED;
   }
 };
@@ -221,9 +221,9 @@ class ConcatLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   Blob<Dtype> col_bob_;
   int count_;
@@ -253,9 +253,9 @@ class ConvolutionLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int kernel_size_;
   int stride_;
@@ -301,9 +301,9 @@ class DataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
@@ -366,9 +366,9 @@ class EltwiseProductLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -390,9 +390,9 @@ class EuclideanLossLayer : public Layer<Dtype> {
   // virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   //     vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+  //     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   Blob<Dtype> difference_;
 };
@@ -417,9 +417,9 @@ class FlattenLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int count_;
 };
@@ -445,9 +445,9 @@ class HDF5OutputLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
   virtual void SaveBlobs();
 
   std::string file_name_;
@@ -475,9 +475,9 @@ class HDF5DataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void LoadHDF5FileData(const char* filename);
 
   std::vector<std::string> hdf_filenames_;
@@ -507,9 +507,9 @@ class HingeLossLayer : public Layer<Dtype> {
   // virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   //     vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+  //     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -526,9 +526,9 @@ class Im2colLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int kernel_size_;
   int stride_;
@@ -564,9 +564,9 @@ class ImageDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
 
   virtual void ShuffleImages();
 
@@ -606,9 +606,9 @@ class InfogainLossLayer : public Layer<Dtype> {
   // virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   //     vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+  //     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   Blob<Dtype> infogain_;
 };
@@ -632,9 +632,9 @@ class InnerProductLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int M_;
   int K_;
@@ -666,9 +666,9 @@ class LRNLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   virtual Dtype CrossChannelForward_cpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
@@ -677,11 +677,11 @@ class LRNLayer : public Layer<Dtype> {
   virtual Dtype WithinChannelForward(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void CrossChannelBackward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void CrossChannelBackward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void WithinChannelBackward(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int size_;
   int pre_pad_;
@@ -767,9 +767,9 @@ class MultinomialLogisticLossLayer : public Layer<Dtype> {
   // virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   //     vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+  //     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 };
 
 template <typename Dtype>
@@ -799,9 +799,9 @@ class PoolingLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int kernel_size_;
   int stride_;
@@ -836,9 +836,9 @@ class SigmoidCrossEntropyLossLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   shared_ptr<SigmoidLayer<Dtype> > sigmoid_layer_;
   // sigmoid_output stores the output of the sigmoid layer.
@@ -867,9 +867,9 @@ class SoftmaxLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   // sum_multiplier is just used to carry out sum using blas
   Blob<Dtype> sum_multiplier_;
@@ -902,9 +902,9 @@ class SoftmaxWithLossLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-     const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   shared_ptr<SoftmaxLayer<Dtype> > softmax_layer_;
   // prob stores the output probability of the layer.
@@ -934,9 +934,9 @@ class SplitLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom);
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   int count_;
 };
@@ -967,9 +967,9 @@ class WindowDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();

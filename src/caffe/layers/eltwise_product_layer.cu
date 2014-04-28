@@ -22,8 +22,8 @@ Dtype EltwiseProductLayer<Dtype>::Forward_gpu(
 
 template <typename Dtype>
 void EltwiseProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
-    const bool propagate_down, vector<Blob<Dtype>*>* bottom) {
-  if (propagate_down) {
+    const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+  if (propagate_down[0]) {
     const int count = top[0]->count();
     const Dtype* top_data = top[0]->gpu_data();
     const Dtype* top_diff = top[0]->gpu_diff();

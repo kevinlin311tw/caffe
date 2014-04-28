@@ -115,7 +115,7 @@ Dtype HDF5DataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 // The backward operations are dummy - they do not carry any computation.
 template <typename Dtype>
 void HDF5DataLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { }
 
 INSTANTIATE_CLASS(HDF5DataLayer);
 
