@@ -91,8 +91,8 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   // Add randomly generated noise to the diff of each of the blobs_to_check --
   // we will subtract this off after the gradient is computed.  This ensures
-  // that a blob increments the diff blob by its gradient, rather than just
-  // overwriting it.
+  // that the layer's AccumBackward increments the diff blob by its gradient,
+  // rather than just overwriting it.
   Caffe::set_random_seed(seed_);
   FillerParameter increment_filler_param;
   increment_filler_param.set_mean(10);
@@ -143,7 +143,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   vector<bool> propagate_down(bottom->size(), true);
   vector<bool> accum_down(bottom->size(), true);
-  layer->Backward(*top, propagate_down, accum_down, bottom);
+  layer->AccumBackward(*top, propagate_down, accum_down, bottom);
   // Store computed gradients for all checked blobs, subtracting the increment.
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());

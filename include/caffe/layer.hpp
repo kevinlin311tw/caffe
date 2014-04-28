@@ -7,6 +7,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/util/math_functions.hpp"
 
 using std::vector;
 
@@ -41,128 +42,16 @@ class Layer {
       vector<Blob<Dtype>*>* top);
 
   // if propagate_down[i], Backward( . , . , . ) computes
-  //     bottom[i]->diff := d{top}/d{bottom[i]}
+  //     bottom[i]->diff := dE/d{bottom[i]}
   inline void Backward(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
   // if propagate_down[i], Backward( . , . , . , . ) computes
-  //     bottom[i]->diff := d{top}/d{bottom[i]} + accum_down[i] * bottom[i]->diff
+  //     bottom[i]->diff := dE/d{bottom[i]} + accum_down[i] * bottom[i]->diff
   // (Equivalent to the previous method if (!accum_down[i]) for all i.)
-  inline void Backward(const vector<Blob<Dtype>*>& top,
+  inline void AccumBackward(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<bool>& accum_down,
       vector<Blob<Dtype>*>* bottom);
-
-  inline void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<bool>& accum_down,
-      vector<Blob<Dtype>*>* bottom) {
-    const int num_bottom = bottom->size();
-    vector<Blob<Dtype>*> orig_bottom(num_bottom);
-    for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-      if (accum_down[bottom_id]) {
-        if (accum_bottom_blobs_.size() <= bottom_id) {
-          accum_bottom_blobs_.resize(bottom_id + 1);
-        }
-        if (!accum_bottom_blobs_[bottom_id]) {
-          accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
-          accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-          accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
-        }
-        orig_bottom[bottom_id] = (*bottom)[bottom_id];
-        (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
-      }
-    }
-    const int num_param = blobs_.size();
-    vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
-    for (int param_id = 0; param_id < num_param; ++param_id) {
-      if (param_accum_down_[param_id]) {
-        if (accum_param_blobs_.size() <= param_id) {
-          accum_param_blobs_.resize(param_id + 1);
-        }
-        if (!accum_param_blobs_[param_id]) {
-          accum_param_blobs_[param_id].reset(new Blob<Dtype>());
-          accum_param_blobs_[param_id]->ReshapeLike(*blobs_[param_id]);
-          accum_param_blobs_[param_id]->CopyFrom(*blobs_[param_id]);
-        }
-        orig_param[param_id] = blobs_[param_id];
-        blobs_[param_id] = accum_param_blobs_[param_id];
-      }
-    }
-    Backward_cpu(top, propagate_down, bottom);
-    for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-      if (accum_down[bottom_id]) {
-        (*bottom)[bottom_id] = orig_bottom[bottom_id];
-        const int count = (*bottom)[bottom_id]->count();
-        const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->cpu_data();
-        Dtype* diff = (*bottom)[bottom_id]->mutable_cpu_data();
-        caffe_add(count, accum_diff, diff, diff);
-      }
-    }
-    for (int param_id = 0; param_id < num_param; ++param_id) {
-      if (param_accum_down_[param_id]) {
-        blobs_[param_id] = orig_param[param_id];
-        const int count = blobs_[param_id]->count();
-        const Dtype* accum_diff = accum_param_blobs_[param_id]->cpu_data();
-        Dtype* diff = blobs_[param_id]->mutable_cpu_data();
-        caffe_add(count, accum_diff, diff, diff);
-      }
-    }
-  }
-
-  inline void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<bool>& accum_down,
-      vector<Blob<Dtype>*>* bottom) {
-    const int num_bottom = bottom->size();
-    vector<Blob<Dtype>*> orig_bottom(num_bottom);
-    for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-      if (accum_down[bottom_id]) {
-        if (accum_bottom_blobs_.size() <= bottom_id) {
-          accum_bottom_blobs_.resize(bottom_id + 1);
-        }
-        if (!accum_bottom_blobs_[bottom_id]) {
-          accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
-          accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-          accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
-        }
-        orig_bottom[bottom_id] = (*bottom)[bottom_id];
-        (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
-      }
-    }
-    const int num_param = blobs_.size();
-    vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
-    for (int param_id = 0; param_id < num_param; ++param_id) {
-      if (param_accum_down_[param_id]) {
-        if (accum_param_blobs_.size() <= param_id) {
-          accum_param_blobs_.resize(param_id + 1);
-        }
-        if (!accum_param_blobs_[param_id]) {
-          accum_param_blobs_[param_id].reset(new Blob<Dtype>());
-          accum_param_blobs_[param_id]->ReshapeLike(*blobs_[param_id]);
-          accum_param_blobs_[param_id]->CopyFrom(*blobs_[param_id]);
-        }
-        orig_param[param_id] = blobs_[param_id];
-        blobs_[param_id] = accum_param_blobs_[param_id];
-      }
-    }
-    Backward_gpu(top, propagate_down, bottom);
-    for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
-      if (accum_down[bottom_id]) {
-        (*bottom)[bottom_id] = orig_bottom[bottom_id];
-        const int count = (*bottom)[bottom_id]->count();
-        const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->gpu_data();
-        Dtype* diff = (*bottom)[bottom_id]->mutable_gpu_data();
-        caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
-      }
-    }
-    for (int param_id = 0; param_id < num_param; ++param_id) {
-      if (param_accum_down_[param_id]) {
-        blobs_[param_id] = orig_param[param_id];
-        const int count = blobs_[param_id]->count();
-        const Dtype* accum_diff = accum_param_blobs_[param_id]->gpu_data();
-        Dtype* diff = blobs_[param_id]->mutable_gpu_data();
-        caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
-      }
-    }
-  }
 
   // Returns the vector of blobs.
   vector<shared_ptr<Blob<Dtype> > >& blobs() {
@@ -291,10 +180,10 @@ class Layer {
   vector<bool> param_accum_down_;
   // The vector that stores the parameters to accumulate diffs, for layers that
   // only implement the regular Backward methods.  When possible to do more
-  // efficiently than the default AccumBackward (which allocates an extra Blob
+  // efficiently than the default Backward (which allocates an extra Blob
   // for the diff, runs the normal Backward method on this extra blob, and then
   // adds the extra blob to the original bottom blob), layers should also
-  // implement their own AccumBackward methods, in which case this vector will
+  // implement their own Backward methods, in which case this vector will
   // be empty.
   vector<shared_ptr<Blob<Dtype> > > accum_bottom_blobs_;
   vector<shared_ptr<Blob<Dtype> > > accum_param_blobs_;
@@ -311,7 +200,7 @@ class Layer {
   }
 
   // Backward functions: compute the gradients for any parameters and
-  // for the bottom blobs if propagate_down is true.
+  // bottom blobs for which propagate_down is true.
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) = 0;
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
@@ -319,6 +208,18 @@ class Layer {
     // LOG(WARNING) << "Using CPU code as backup.";
     Backward_cpu(top, propagate_down, bottom);
   }
+
+  // AccumBackward functions: compute the gradients for any parameters and
+  // bottom blobs for which propagate_down is true, adding to the current
+  // diff if accum_down is true (zeroing out otherwise, as in Backward).
+  // These generalize the Backward functions and a default implementation is
+  // is provided for layers that implement only the Backward functions.
+  virtual void AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<bool>& accum_down,
+      vector<Blob<Dtype>*>* bottom);
+  virtual void AccumBackward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<bool>& accum_down,
+      vector<Blob<Dtype>*>* bottom);
 
   DISABLE_COPY_AND_ASSIGN(Layer);
 };  // class Layer
@@ -356,15 +257,15 @@ inline void Layer<Dtype>::Backward(const vector<Blob<Dtype>*>& top,
 }
 
 template <typename Dtype>
-inline void Layer<Dtype>::Backward(const vector<Blob<Dtype>*>& top,
+inline void Layer<Dtype>::AccumBackward(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<bool>& accum_down,
     vector<Blob<Dtype>*>* bottom) {
   switch (Caffe::mode()) {
   case Caffe::CPU:
-    Backward_cpu(top, propagate_down, accum_down, bottom);
+    AccumBackward_cpu(top, propagate_down, accum_down, bottom);
     break;
   case Caffe::GPU:
-    Backward_gpu(top, propagate_down, accum_down, bottom);
+    AccumBackward_gpu(top, propagate_down, accum_down, bottom);
     break;
   default:
     LOG(FATAL) << "Unknown caffe mode.";
@@ -385,6 +286,121 @@ void Layer<Dtype>::ToProto(LayerParameter* param, bool write_diff) {
 // The layer factory function
 template <typename Dtype>
 Layer<Dtype>* GetLayer(const LayerParameter& param);
+
+template <typename Dtype>
+void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<bool>& accum_down,
+    vector<Blob<Dtype>*>* bottom) {
+  const int num_bottom = bottom->size();
+  vector<Blob<Dtype>*> orig_bottom(num_bottom);
+  for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
+    if (accum_down[bottom_id]) {
+      if (accum_bottom_blobs_.size() <= bottom_id) {
+        accum_bottom_blobs_.resize(bottom_id + 1);
+      }
+      if (!accum_bottom_blobs_[bottom_id]) {
+        accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
+        accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
+        accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
+      }
+      orig_bottom[bottom_id] = (*bottom)[bottom_id];
+      (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
+    }
+  }
+  const int num_param = blobs_.size();
+  vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
+  for (int param_id = 0; param_id < num_param; ++param_id) {
+    if (param_accum_down_[param_id]) {
+      if (accum_param_blobs_.size() <= param_id) {
+        accum_param_blobs_.resize(param_id + 1);
+      }
+      if (!accum_param_blobs_[param_id]) {
+        accum_param_blobs_[param_id].reset(new Blob<Dtype>());
+        accum_param_blobs_[param_id]->ReshapeLike(*this->blobs_[param_id]);
+        accum_param_blobs_[param_id]->CopyFrom(*this->blobs_[param_id]);
+      }
+      orig_param[param_id] = blobs_[param_id];
+      blobs_[param_id] = this->accum_param_blobs_[param_id];
+    }
+  }
+  Backward_cpu(top, propagate_down, bottom);
+  for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
+    if (accum_down[bottom_id]) {
+      (*bottom)[bottom_id] = orig_bottom[bottom_id];
+      const int count = (*bottom)[bottom_id]->count();
+      const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->cpu_diff();
+      Dtype* diff = (*bottom)[bottom_id]->mutable_cpu_diff();
+      caffe_add(count, accum_diff, diff, diff);
+    }
+  }
+  for (int param_id = 0; param_id < num_param; ++param_id) {
+    if (param_accum_down_[param_id]) {
+      blobs_[param_id] = orig_param[param_id];
+      const int count = blobs_[param_id]->count();
+      const Dtype* accum_diff = accum_param_blobs_[param_id]->cpu_diff();
+      Dtype* diff = blobs_[param_id]->mutable_cpu_diff();
+      caffe_add(count, accum_diff, diff, diff);
+    }
+  }
+}
+
+template <typename Dtype>
+void Layer<Dtype>::AccumBackward_gpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<bool>& accum_down,
+    vector<Blob<Dtype>*>* bottom) {
+  const int num_bottom = bottom->size();
+  vector<Blob<Dtype>*> orig_bottom(num_bottom);
+  for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
+    if (accum_down[bottom_id]) {
+      if (accum_bottom_blobs_.size() <= bottom_id) {
+        accum_bottom_blobs_.resize(bottom_id + 1);
+      }
+      if (!accum_bottom_blobs_[bottom_id]) {
+        accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
+        accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
+        accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
+      }
+      orig_bottom[bottom_id] = (*bottom)[bottom_id];
+      (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
+    }
+  }
+  const int num_param = blobs_.size();
+  vector<shared_ptr<Blob<Dtype> > > orig_param(num_param);
+  for (int param_id = 0; param_id < num_param; ++param_id) {
+    if (param_accum_down_[param_id]) {
+      if (accum_param_blobs_.size() <= param_id) {
+        accum_param_blobs_.resize(param_id + 1);
+      }
+      if (!accum_param_blobs_[param_id]) {
+        accum_param_blobs_[param_id].reset(new Blob<Dtype>());
+        accum_param_blobs_[param_id]->ReshapeLike(*this->blobs_[param_id]);
+        accum_param_blobs_[param_id]->CopyFrom(*this->blobs_[param_id]);
+      }
+      orig_param[param_id] = blobs_[param_id];
+      blobs_[param_id] = this->accum_param_blobs_[param_id];
+    }
+  }
+  Backward_gpu(top, propagate_down, bottom);
+  for (int bottom_id = 0; bottom_id < num_bottom; ++bottom_id) {
+    if (accum_down[bottom_id]) {
+      (*bottom)[bottom_id] = orig_bottom[bottom_id];
+      const int count = (*bottom)[bottom_id]->count();
+      const Dtype* accum_diff =
+          accum_bottom_blobs_[bottom_id]->gpu_diff();
+      Dtype* diff = (*bottom)[bottom_id]->mutable_gpu_diff();
+      caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
+    }
+  }
+  for (int param_id = 0; param_id < num_param; ++param_id) {
+    if (param_accum_down_[param_id]) {
+      blobs_[param_id] = orig_param[param_id];
+      const int count = blobs_[param_id]->count();
+      const Dtype* accum_diff = accum_param_blobs_[param_id]->gpu_diff();
+      Dtype* diff = blobs_[param_id]->mutable_gpu_diff();
+      caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
+    }
+  }
+}
 
 }  // namespace caffe
 
