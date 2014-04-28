@@ -301,9 +301,13 @@ class DataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
@@ -339,9 +343,13 @@ class DummyDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top) { return Forward_cpu(bottom, top); }
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
 
   vector<shared_ptr<Filler<Dtype> > > fillers_;
 };

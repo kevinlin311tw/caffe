@@ -1,19 +1,10 @@
 // Copyright 2014 BVLC and contributors.
 
-#include <stdint.h>
-#include <leveldb/db.h>
-#include <pthread.h>
-
-#include <string>
 #include <vector>
 
+#include "caffe/filler.hpp"
 #include "caffe/layer.hpp"
-#include "caffe/util/io.hpp"
-#include "caffe/util/math_functions.hpp"
-#include "caffe/util/rng.hpp"
 #include "caffe/vision_layers.hpp"
-
-using std::string;
 
 namespace caffe {
 
@@ -55,7 +46,10 @@ void DummyDataLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
       fillers_[i].reset(GetFiller<Dtype>(param.data_filler(i)));
     }
   }
-
+  for (int i = 0; i < num_top; ++i) {
+    (*top)[i]->Reshape(param.num(i), param.channels(i),
+                       param.height(i), param.width(i));
+  }
 }
 
 template <typename Dtype>
