@@ -36,14 +36,6 @@ class Net {
   // memory proportional to max(net_a_blob_size, net_b_blob_size) rather than
   // (net_a_blob_size + net_b_blob_size).
   void Init(const NetParameter& param, Net<Dtype>* memory_share_net = NULL);
-  int AppendTop(const NetParameter& param, const int layer_index,
-      const int top_index);
-  int AppendBottom(const NetParameter& param, const int layer_index,
-      const int bottom_index);
-  void CanonicalBlobName(const size_t max_chars, const char* user_blob_name,
-      const char* layer_name, const int layer_index, const int top_blob_index,
-      char* canonical_blob_name);
-
   // Run forward with the input blobs already fed separately. You can get the
   // input blobs using input_blobs().
   const vector<Blob<Dtype>*>& ForwardPrefilled(Dtype* loss = NULL);
@@ -118,6 +110,15 @@ class Net {
   // Function to get misc parameters, e.g. the learning rate multiplier and
   // weight decay.
   void GetLearningRateAndWeightDecay();
+
+  // Helpers for Init
+  int AppendTop(const NetParameter& param, const int layer_index,
+      const int top_index);
+  int AppendBottom(const NetParameter& param, const int layer_index,
+      const int bottom_index);
+  void CanonicalBlobName(const size_t max_chars, const char* user_blob_name,
+      const char* layer_name, const int layer_index, const int top_blob_index,
+      char* canonical_blob_name);
 
   // Individual layers in the net
   vector<shared_ptr<Layer<Dtype> > > layers_;

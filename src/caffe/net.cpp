@@ -211,12 +211,11 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_index,
   const int blob_id = blobs_.size();
   blobs_.push_back(blob_pointer);
   string user_blob_name;
-  LayerParameter layer_param;
+  const LayerParameter& layer_param = param.layers(layer_index);
   if (layer_index == -1) {
     user_blob_name = param.input(top_index);
   } else {
     user_blob_name = layer_param.top(top_index);
-    layer_param.CopyFrom(param.layers(layer_index));
   }
   user_blob_names_.push_back(user_blob_name);
   string blob_name;

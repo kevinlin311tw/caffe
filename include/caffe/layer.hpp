@@ -39,26 +39,13 @@ class Layer {
   // functions.
   inline Dtype Forward(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  // The Backward method runs backprop for all of this layer's parameter and
-  // bottom blobs.  Normally, one should compute gradients using Net::Backward
-  // which selectively calls the ParamBackward and/or BottomBackward methods
-  // only when necessary.  This method is mainly for testing convenience.
-  inline void Backward(const vector<Blob<Dtype>*>& top,
-      vector<Blob<Dtype>*>* bottom) {
-    for (int param_id = 0; param_id < layer_param_.blobs_size(); ++param_id) {
-      ParamBackward(param_id, top, *bottom);
-    }
-    for (int bottom_id = 0; bottom_id < bottom->size(); ++bottom_id) {
-      BottomBackward(bottom_id, top, bottom);
-    }
-  }
 
-  // If propagate_down[i], compute
+  // if propagate_down[i], Backward( . , . , . ) computes
   //     bottom[i]->diff := d{top}/d{bottom[i]}
   inline void Backward(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
 
-  // If propagate_down[i], compute
+  // if propagate_down[i], Backward( . , . , . , . ) computes
   //     bottom[i]->diff := d{top}/d{bottom[i]} + accum_down[i] * bottom[i]->diff
   // (Equivalent to the previous method if (!accum_down[i]) for all i.)
   inline void Backward(const vector<Blob<Dtype>*>& top,
