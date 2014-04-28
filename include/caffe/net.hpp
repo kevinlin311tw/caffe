@@ -103,8 +103,14 @@ class Net {
   const shared_ptr<Blob<Dtype> > blob_by_name(const string& blob_name);
   bool has_layer(const string& layer_name);
   const shared_ptr<Layer<Dtype> > layer_by_name(const string& layer_name);
+  const map<string, int>& layer_names_index() { return layer_names_index_; }
   // Access blob metadata, mainly for testing purposes
   const vector<bool>& blob_need_backward() { return blob_need_backward_; }
+  const map<string, int>& blob_names_index() { return blob_names_index_; }
+  const vector<pair<int, int> >& blob_top_index() { return blob_top_index_; }
+  const vector<vector<pair<int, int> > >& blob_bottom_indices() {
+    return blob_bottom_indices_;
+  }
 
  protected:
   // Function to get misc parameters, e.g. the learning rate multiplier and

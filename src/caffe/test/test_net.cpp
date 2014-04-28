@@ -178,26 +178,28 @@ TYPED_TEST(NetTest, TestGetLayerByName) {
   EXPECT_FALSE(this->net_->layer_by_name("label"));
 }
 
-// TYPED_TEST(NetTest, TestBlobNumConsumersTinyNet) {
-//   this->InitTinyNet();
-//   const map<string, int>& blob_names_index = this->net_->blob_names_index();
-//   const vector<int>& blob_num_consumers = this->net_->blob_num_consumers();
-//   EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("data")->second]);
-//   EXPECT_EQ(1, blob_num_consumers[blob_names_index.find("label")->second]);
-//   EXPECT_EQ(1,
-//        blob_num_consumers[blob_names_index.find("innerproduct")->second]);
-// }
-// 
-// TYPED_TEST(NetTest, TestBlobNumConsumersTrickyNet) {
-//   this->InitTrickyNet();
-//   const map<string, int>& blob_names_index = this->net_->blob_names_index();
-//   const vector<int>& blob_num_consumers = this->net_->blob_num_consumers();
-//   EXPECT_EQ(5, blob_num_consumers[blob_names_index.find("data")->second]);
-//   EXPECT_EQ(2, blob_num_consumers[blob_names_index.find("label")->second]);
-//   EXPECT_EQ(1,
-//       blob_num_consumers[blob_names_index.find("eltwiseproduct")->second]);
-//   EXPECT_EQ(0,
-//       blob_num_consumers[blob_names_index.find("accuracy")->second]);
-// }
+TYPED_TEST(NetTest, TestBlobNumConsumersTinyNet) {
+  this->InitTinyNet();
+  const map<string, int>& blob_names_index = this->net_->blob_names_index();
+  const vector<vector<pair<int, int> > >& blob_bottom_indices =
+      this->net_->blob_bottom_indices();
+  EXPECT_EQ(1, blob_bottom_indices[blob_names_index.find("data")->second].size());
+  EXPECT_EQ(1, blob_bottom_indices[blob_names_index.find("label")->second].size());
+  EXPECT_EQ(1,
+       blob_bottom_indices[blob_names_index.find("innerproduct")->second].size());
+}
+
+TYPED_TEST(NetTest, TestBlobNumConsumersTrickyNet) {
+  this->InitTrickyNet();
+  const map<string, int>& blob_names_index = this->net_->blob_names_index();
+  const vector<vector<pair<int, int> > >& blob_bottom_indices =
+      this->net_->blob_bottom_indices();
+  EXPECT_EQ(5, blob_bottom_indices[blob_names_index.find("data")->second].size());
+  EXPECT_EQ(2, blob_bottom_indices[blob_names_index.find("label")->second].size());
+  EXPECT_EQ(1,
+      blob_bottom_indices[blob_names_index.find("eltwiseproduct")->second].size());
+  EXPECT_EQ(0,
+      blob_bottom_indices[blob_names_index.find("accuracy")->second].size());
+}
 
 }  // namespace caffe
