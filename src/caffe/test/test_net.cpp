@@ -14,6 +14,8 @@
 
 #include "caffe/test/test_caffe_main.hpp"
 
+using std::make_pair;
+
 namespace caffe {
 
 
@@ -99,14 +101,24 @@ class NetTest : public ::testing::Test {
   }
 
   virtual void InitTrickyNet() {
-    const string& proto_prefix =
+    const string& proto =
         "name: 'TrickyTestNetwork' "
         "layers: { "
         "  name: 'data' "
-        "  type: DATA "
-        "  data_param { ";
-    const string& proto_suffix =
-        "    batch_size: 1 "
+        "  type: DUMMY_DATA "
+        "  dummy_data_param { "
+        "    num: 5 "
+        "    channels: 2 "
+        "    height: 3 "
+        "    width: 4 "
+        "    num: 5 "
+        "    channels: 1 "
+        "    height: 1 "
+        "    width: 1 "
+        "    data_filler { "
+        "      type: 'gaussian' "
+        "      std: 0.01 "
+        "    } "
         "  } "
         "  top: 'data' "
         "  top: 'label' "
@@ -133,8 +145,7 @@ class NetTest : public ::testing::Test {
         "  bottom: 'label' "
         "  top: 'accuracy' "
         "} ";
-    proto_.reset(new string(proto_prefix + "source: '" + *filename_ +
-                            "' " + proto_suffix));
+    proto_.reset(new string(proto));
     InitNetFromProto();
   }
 
@@ -178,28 +189,50 @@ TYPED_TEST(NetTest, TestGetLayerByName) {
   EXPECT_FALSE(this->net_->layer_by_name("label"));
 }
 
-TYPED_TEST(NetTest, TestBlobNumConsumersTinyNet) {
-  this->InitTinyNet();
-  const map<string, int>& blob_names_index = this->net_->blob_names_index();
-  const vector<vector<pair<int, int> > >& blob_bottom_indices =
-      this->net_->blob_bottom_indices();
-  EXPECT_EQ(1, blob_bottom_indices[blob_names_index.find("data")->second].size());
-  EXPECT_EQ(1, blob_bottom_indices[blob_names_index.find("label")->second].size());
-  EXPECT_EQ(1,
-       blob_bottom_indices[blob_names_index.find("innerproduct")->second].size());
-}
-
-TYPED_TEST(NetTest, TestBlobNumConsumersTrickyNet) {
+TYPED_TEST(NetTest, TestBlobBottomIndex) {
   this->InitTrickyNet();
   const map<string, int>& blob_names_index = this->net_->blob_names_index();
   const vector<vector<pair<int, int> > >& blob_bottom_indices =
       this->net_->blob_bottom_indices();
-  EXPECT_EQ(5, blob_bottom_indices[blob_names_index.find("data")->second].size());
-  EXPECT_EQ(2, blob_bottom_indices[blob_names_index.find("label")->second].size());
-  EXPECT_EQ(1,
-      blob_bottom_indices[blob_names_index.find("eltwiseproduct")->second].size());
-  EXPECT_EQ(0,
-      blob_bottom_indices[blob_names_index.find("accuracy")->second].size());
+  EXPECT_EQ(4, blob_bottom_indices.size());
+  const vector<pair<int, int> >& data_bottom_indices =
+      blob_bottom_indices[blob_names_index.find("data")->second];
+  EXPECT_EQ(5, data_bottom_indices.size());
+  EXPECT_EQ(make_pair(1, 0), data_bottom_indices[0]);
+  EXPECT_EQ(make_pair(1, 1), data_bottom_indices[1]);
+  EXPECT_EQ(make_pair(1, 2), data_bottom_indices[2]);
+  EXPECT_EQ(make_pair(1, 3), data_bottom_indices[3]);
+  EXPECT_EQ(make_pair(3, 0), data_bottom_indices[4]);
+  const vector<pair<int, int> >& label_bottom_indices =
+      blob_bottom_indices[blob_names_index.find("label")->second];
+  EXPECT_EQ(2, label_bottom_indices.size());
+  EXPECT_EQ(make_pair(2, 1), label_bottom_indices[0]);
+  EXPECT_EQ(make_pair(3, 1), label_bottom_indices[1]);
+  const vector<pair<int, int> >& eltprod_bottom_indices =
+      blob_bottom_indices[blob_names_index.find("eltwiseproduct")->second];
+  EXPECT_EQ(1, eltprod_bottom_indices.size());
+  EXPECT_EQ(make_pair(2, 0), eltprod_bottom_indices[0]);
+  const vector<pair<int, int> >& accuracy_bottom_indices =
+      blob_bottom_indices[blob_names_index.find("accuracy")->second];
+  EXPECT_EQ(0, accuracy_bottom_indices.size());
+}
+
+TYPED_TEST(NetTest, TestBlobTopIndexTrickyNet) {
+  this->InitTrickyNet();
+  const map<string, int>& blob_names_index = this->net_->blob_names_index();
+  const vector<pair<int, int> >& blob_top_index = this->net_->blob_top_index();
+  const pair<int, int>& data_top_index =
+      blob_top_index[blob_names_index.find("data")->second];
+  EXPECT_EQ(make_pair(0, 0), data_top_index);
+  const pair<int, int>& label_top_index =
+      blob_top_index[blob_names_index.find("label")->second];
+  EXPECT_EQ(make_pair(0, 1), label_top_index);
+  const pair<int, int>& eltprod_top_index =
+      blob_top_index[blob_names_index.find("eltwiseproduct")->second];
+  EXPECT_EQ(make_pair(1, 0), eltprod_top_index);
+  const pair<int, int>& accuracy_top_index =
+      blob_top_index[blob_names_index.find("accuracy")->second];
+  EXPECT_EQ(make_pair(3, 0), accuracy_top_index);
 }
 
 }  // namespace caffe
