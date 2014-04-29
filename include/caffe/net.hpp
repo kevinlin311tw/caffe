@@ -111,7 +111,12 @@ class Net {
   const vector<vector<pair<int, int> > >& blob_bottom_indices() {
     return blob_bottom_indices_;
   }
-  const vector<vector<bool> >& bottom_diff_scales() { return bottom_diff_scales_; }
+  const vector<vector<bool> >& bottom_diff_scales() {
+    return bottom_diff_scales_;
+  }
+  const map<string, pair<int, int> >& param_names_index() {
+    return param_names_index_;
+  }
 
  protected:
   // Function to get misc parameters, e.g. the learning rate multiplier and
@@ -172,6 +177,7 @@ class Net {
   vector<vector<int> > param_id_vecs_;
   vector<vector<bool> > param_diff_scales_;
   vector<vector<bool> > param_need_backward_;
+  map<string, pair<int, int> > param_names_index_;
   // blob indices for the input and the output of the net
   vector<int> net_input_blob_indices_;
   vector<Blob<Dtype>*> net_input_blobs_;

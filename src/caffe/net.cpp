@@ -110,16 +110,20 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   bottom_vecs_.resize(num_layers);
   bottom_id_vecs_.resize(num_layers);
   bottom_diff_scales_.resize(num_layers);
+  bottom_need_backward_.resize(num_layers);
+  param_diff_scales_.resize(num_layers);
+  param_need_backward_.resize(num_layers);
   top_vecs_.resize(num_layers);
   top_id_vecs_.resize(num_layers);
-  bottom_need_backward_.resize(num_layers);
   for (int i = 0; i < param.layers_size(); ++i) {
     bottom_vecs_[i].clear();
     bottom_id_vecs_[i].clear();
     bottom_diff_scales_[i].clear();
+    bottom_need_backward_[i].clear();
+    param_diff_scales_[i].clear();
+    param_need_backward_[i].clear();
     top_vecs_[i].clear();
     top_id_vecs_[i].clear();
-    bottom_need_backward_[i].clear();
     bool in_place = false;  // TODO: implement in_place computation.
     const LayerParameter& layer_param = param.layers(i);
     layers_.push_back(shared_ptr<Layer<Dtype> >(GetLayer<Dtype>(layer_param)));
@@ -156,24 +160,49 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     }
     DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
     int blobs_lr_size = layers_[i]->layer_param().blobs_lr_size();
-    CHECK(blobs_lr_size == layers_[i]->blobs().size() || blobs_lr_size == 0)
+    int num_param_blobs = layers_[i]->blobs().size();
+    CHECK(blobs_lr_size == num_param_blobs || blobs_lr_size == 0)
         << "Incorrect blobs_lr size: should be either 0 or the same as "
-           "the number of the layer's parameter blobs.";
-    int blob_name_size = layers_[i]->layer_param().blob_name_size();
-    CHECK(blob_name_size == layers_[i]->blobs().size() || blob_name_size == 0)
-        << "Incorrect blob_name size: should be either 0 or the same as "
-           "the number of the layer's parameter blobs.";
+           "the number of the layer's parameter blobs: " << num_param_blobs;
     // Check if this layer needs backward operation itself
     if (blobs_lr_size) {
       for (int j = 0; j < blobs_lr_size; ++j) {
-        const bool learn_blob = (layers_[i]->layer_param().blobs_lr(j) > 0);
-        layer_need_backward |= learn_blob;
-        layers_[i]->set_param_propagate_down(j, learn_blob);
+        param_need_backward_[i].push_back(
+            layers_[i]->layer_param().blobs_lr(j) > 0);
+        layer_need_backward |= param_need_backward_[i][j];
+        layers_[i]->set_param_propagate_down(j, param_need_backward_[i][j]);
       }
     } else if (layers_[i]->blobs().size()) {
       // catch: if a layer param does not specify blobs_lr, we should assume the
       // learning rate to be 1. Thus we will need to perform backward.
       layer_need_backward = true;
+    }
+    int blob_name_size = layers_[i]->layer_param().blob_name_size();
+    CHECK(blob_name_size == num_param_blobs || blob_name_size == 0)
+        << "Incorrect blob_name size: should be either 0 or the same as "
+           "the number of the layer's parameter blobs: " << num_param_blobs;
+    for (int param_id = 0; param_id < blob_name_size; ++param_id) {
+      string param_name;
+      if (blob_name_size) {
+        param_name = layers_[i]->layer_param().blob_name(param_id);
+      }
+      if (!blob_name_size ||
+          param_names_index_.find(param_name) == param_names_index_.end()) {
+        param_diff_scales_[i].push_back(0);
+        layers_[i]->set_param_accum_down(param_id, 0);
+        if (blob_name_size) {
+          param_names_index_[param_name] = make_pair(i, param_id);
+        }
+      } else {
+        // Named param blob with name we've seen before: share weights
+        param_diff_scales_[i].push_back(1);
+        layers_[i]->set_param_accum_down(param_id, 1);
+        const pair<int, int>& owner_index = param_names_index_[param_name];
+        const int owner_layer_id = owner_index.first;
+        const int owner_param_id = owner_index.second;
+        layers_[i]->blobs()[param_id]->ShareData(
+            *layers_[owner_layer_id]->blobs()[owner_param_id]);
+      }
     }
     // Finally, set the backward flag
     layer_need_backward_.push_back(layer_need_backward);
