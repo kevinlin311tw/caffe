@@ -20,6 +20,7 @@ void InnerProductLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
   M_ = bottom[0]->num();
   K_ = bottom[0]->count() / bottom[0]->num();
   N_ = num_output;
+  CHECK_GT(N_, 0) << "InnerProduct Layer must have num_output > 0";
   (*top)[0]->Reshape(bottom[0]->num(), num_output, 1, 1);
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {

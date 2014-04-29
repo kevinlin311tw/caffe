@@ -166,6 +166,9 @@ message LayerParameter {
 
   // The blobs containing the numeric parameters of the layer
   repeated BlobProto blobs = 6;
+  // The names of the parameter blobs -- useful for sharing parameters among
+  // layers (but never required).
+  repeated string blob_name = 1001;
   // The ratio that is multiplied on the global learning rate. If you want to
   // set the learning ratio for one blob, you need to set it for all blobs.
   repeated float blobs_lr = 7;

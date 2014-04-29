@@ -23,6 +23,7 @@ template <typename Dtype>
 class NetTest : public ::testing::Test {
  protected:
   virtual void SetUp() {  // Create the leveldb
+    Caffe::set_random_seed(1701);
     filename_.reset(new string(tmpnam(NULL)));  // get temp name
     LOG(INFO) << "Using temporary leveldb " << *filename_;
     leveldb::DB* db;
@@ -49,9 +50,9 @@ class NetTest : public ::testing::Test {
     delete db;
   }
 
-  virtual void InitNetFromProto() {
+  virtual void InitNetFromProto(const string& proto) {
     NetParameter param;
-    CHECK(google::protobuf::TextFormat::ParseFromString(*proto_, &param));
+    CHECK(google::protobuf::TextFormat::ParseFromString(proto, &param));
     net_.reset(new Net<Dtype>(param));
   }
 
@@ -95,9 +96,8 @@ class NetTest : public ::testing::Test {
         "  bottom: 'innerproduct' "
         "  bottom: 'label' "
         "} ";
-    proto_.reset(new string(proto_prefix + "source: '" + *filename_ +
-                            "' " + proto_suffix));
-    InitNetFromProto();
+    InitNetFromProto(proto_prefix + "source: '" + *filename_ +
+                     "' " + proto_suffix);
   }
 
   virtual void InitTrickyNet() {
@@ -145,12 +145,71 @@ class NetTest : public ::testing::Test {
         "  bottom: 'label' "
         "  top: 'accuracy' "
         "} ";
-    proto_.reset(new string(proto));
-    InitNetFromProto();
+    InitNetFromProto(proto);
+  }
+
+  virtual void InitSelfRegressionNet() {
+    const string& proto =
+        "name: 'SelfRegressionNetwork' "
+        "layers: { "
+        "  name: 'data' "
+        "  type: DUMMY_DATA "
+        "  dummy_data_param { "
+        "    num: 5 "
+        "    channels: 2 "
+        "    height: 3 "
+        "    width: 4 "
+        "    data_filler { "
+        "      type: 'gaussian' "
+        "      std: 0.01 "
+        "    } "
+        "  } "
+        "  top: 'data' "
+        "} "
+        "layers: { "
+        "  name: 'innerproduct1' "
+        "  type: INNER_PRODUCT "
+        "  inner_product_param { "
+        "    num_output: 10 "
+        "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'gaussian' "
+        "      std: 1 "
+        "    } "
+        "  } "
+        "  blob_name: 'sharedweights' "
+        "  bottom: 'data' "
+        "  top: 'innerproduct1' "
+        "} "
+        "layers: { "
+        "  name: 'innerproduct2' "
+        "  type: INNER_PRODUCT "
+        "  inner_product_param { "
+        "    num_output: 10 "
+        "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'gaussian' "
+        "      std: 1 "
+        "    } "
+        "    bias_filler { "
+        "      type: 'constant' "
+        "      value: 0 "
+        "    } "
+        "  } "
+        "  blob_name: 'sharedweights' "
+        "  bottom: 'data' "
+        "  top: 'innerproduct2' "
+        "} "
+        "layers: { "
+        "  name: 'loss' "
+        "  type: EUCLIDEAN_LOSS "
+        "  bottom: 'innerproduct1' "
+        "  bottom: 'innerproduct2' "
+        "} ";
+    InitNetFromProto(proto);
   }
 
   shared_ptr<string> filename_;
-  shared_ptr<string> proto_;
   shared_ptr<Net<Dtype> > net_;
 };
 
@@ -252,6 +311,14 @@ TYPED_TEST(NetTest, TestBlobBottomDiffScales) {
   EXPECT_EQ(0, bottom_diff_scales[2][1]);
   EXPECT_EQ(1, bottom_diff_scales[3][0]);
   EXPECT_EQ(1, bottom_diff_scales[3][1]);
+}
+
+TYPED_TEST(NetTest, TestSelfRegressionNet) {
+  this->InitSelfRegressionNet();
+  vector<Blob<TypeParam>*> bottom;
+  TypeParam loss;
+  this->net_->Forward(bottom, &loss);
+  EXPECT_EQ(loss, 0);
 }
 
 }  // namespace caffe

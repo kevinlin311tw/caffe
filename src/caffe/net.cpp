@@ -145,19 +145,23 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     // LOG(INFO) << "Setting up " << layer_names_[i];
     layers_[i]->CheckBlobCounts(bottom_vecs_[i], top_vecs_[i]);
     layers_[i]->SetUp(bottom_vecs_[i], &top_vecs_[i]);
-    for (int topid = 0; topid < top_vecs_[i].size(); ++topid) {
-      LOG(INFO) << "Top shape: " << top_vecs_[i][topid]->num() << " "
-          << top_vecs_[i][topid]->channels() << " "
-          << top_vecs_[i][topid]->height() << " "
-          << top_vecs_[i][topid]->width() << " ("
-          << top_vecs_[i][topid]->count() << ")";
+    for (int top_id = 0; top_id < top_vecs_[i].size(); ++top_id) {
+      LOG(INFO) << "Top shape: " << top_vecs_[i][top_id]->num() << " "
+          << top_vecs_[i][top_id]->channels() << " "
+          << top_vecs_[i][top_id]->height() << " "
+          << top_vecs_[i][top_id]->width() << " ("
+          << top_vecs_[i][top_id]->count() << ")";
       if (!in_place)
-        memory_used_ += top_vecs_[i][topid]->count();
+        memory_used_ += top_vecs_[i][top_id]->count();
     }
     DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
     int blobs_lr_size = layers_[i]->layer_param().blobs_lr_size();
     CHECK(blobs_lr_size == layers_[i]->blobs().size() || blobs_lr_size == 0)
-        << "Incorrect blobs lr size: should be either 0 or the same as "
+        << "Incorrect blobs_lr size: should be either 0 or the same as "
+           "the number of the layer's parameter blobs.";
+    int blob_name_size = layers_[i]->layer_param().blob_name_size();
+    CHECK(blob_name_size == layers_[i]->blobs().size() || blob_name_size == 0)
+        << "Incorrect blob_name size: should be either 0 or the same as "
            "the number of the layer's parameter blobs.";
     // Check if this layer needs backward operation itself
     if (blobs_lr_size) {
