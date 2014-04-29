@@ -146,11 +146,16 @@ Dtype EuclideanLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void EuclideanLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
-  int count = (*bottom)[0]->count();
-  int num = (*bottom)[0]->num();
-  // Compute the gradient
-  caffe_cpu_axpby(count, Dtype(1) / num, difference_.cpu_data(), Dtype(0),
-      (*bottom)[0]->mutable_cpu_diff());
+  const int count = (*bottom)[0]->count();
+  const int num = (*bottom)[0]->num();
+  for (int bottom_id = 0; bottom_id < 2; ++bottom_id) {
+    if (propagate_down[bottom_id]) {
+      // Compute the gradient
+      const int sign = bottom_id ? -1 : 1;
+      caffe_cpu_axpby(count, Dtype(sign) / num, difference_.cpu_data(), Dtype(0),
+          (*bottom)[bottom_id]->mutable_cpu_diff());
+    }
+  }
 }
 
 template <typename Dtype>
@@ -229,17 +234,22 @@ Dtype HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
-  Dtype* bottom_diff = (*bottom)[0]->mutable_cpu_diff();
-  const Dtype* label = (*bottom)[1]->cpu_data();
-  int num = (*bottom)[0]->num();
-  int count = (*bottom)[0]->count();
-  int dim = count / num;
-
-  caffe_cpu_sign(count, bottom_diff, bottom_diff);
-  for (int i = 0; i < num; ++i) {
-    bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
+  if (propagate_down[1]) {
+    NOT_IMPLEMENTED;  // Cannot backprop to labels.
   }
-  caffe_scal(count, Dtype(1. / num), bottom_diff);
+  if (propagate_down[0]) {
+    Dtype* bottom_diff = (*bottom)[0]->mutable_cpu_diff();
+    const Dtype* label = (*bottom)[1]->cpu_data();
+    int num = (*bottom)[0]->num();
+    int count = (*bottom)[0]->count();
+    int dim = count / num;
+
+    caffe_cpu_sign(count, bottom_diff, bottom_diff);
+    for (int i = 0; i < num; ++i) {
+      bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
+    }
+    caffe_scal(count, Dtype(1. / num), bottom_diff);
+  }
 }
 
 INSTANTIATE_CLASS(MultinomialLogisticLossLayer);

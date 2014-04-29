@@ -54,6 +54,8 @@ TYPED_TEST(EuclideanLossLayerTest, TestGradientCPU) {
   GradientChecker<TypeParam> checker(1e-2, 1e-2, 1701);
   checker.CheckGradientSingle(&layer, &(this->blob_bottom_vec_),
       &(this->blob_top_vec_), 0, -1, -1);
+  checker.CheckGradientSingle(&layer, &(this->blob_bottom_vec_),
+      &(this->blob_top_vec_), 1, -1, -1);
 }
 
 }  // namespace caffe
