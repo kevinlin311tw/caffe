@@ -124,6 +124,12 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     const LayerParameter& layer_param = param.layers(i);
     layers_.push_back(shared_ptr<Layer<Dtype> >(GetLayer<Dtype>(layer_param)));
     layer_names_.push_back(layer_param.name());
+    if (layer_names_index_.find(layer_param.name()) ==
+        layer_names_index_.end()) {
+      layer_names_index_[layer_names_[i]] = i;
+    } else {
+      LOG(FATAL) << "Duplicate layer name " << layer_param.name();
+    }
     LOG(INFO) << "Creating Layer " << layer_param.name();
     // Go through the layer's inputs
     bool layer_need_backward = param.force_backward();
@@ -185,9 +191,6 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   for (size_t i = 0; i < blob_names_.size(); ++i) {
     blob_names_index_[blob_names_[i]] = i;
   }
-  for (size_t i = 0; i < layer_names_.size(); ++i) {
-    layer_names_index_[layer_names_[i]] = i;
-  }
   GetLearningRateAndWeightDecay();
   LOG(INFO) << "Network initialization done.";
   LOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
@@ -230,11 +233,11 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_index,
                         kInputLayerName : layer_param.name();
     char* blob_name_c_str = new char[kMaxBlobNameChars];
     CanonicalBlobName(kMaxBlobNameChars, user_blob_name.c_str(),
-        layer_name.c_str(), layer_index, top_index, blob_name_c_str);
+        layer_name.c_str(), top_index, layer_param.top_size(), blob_name_c_str);
     blob_name = blob_name_c_str;
     canonical_blob_name_display << " (" << blob_name << ")";
   }
-  LOG(INFO) << layer_param.name() << " -> " << blob_name
+  LOG(INFO) << layer_param.name() << " -> " << user_blob_name
             << canonical_blob_name_display.str();
   blob_names_.push_back(blob_name);
   user_blob_name_to_current_index_[user_blob_name] = blob_id;
@@ -296,10 +299,16 @@ int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_index,
 
 template <typename Dtype>
 void Net<Dtype>::CanonicalBlobName(const size_t max_chars,
-    const char* user_blob_name, const char* layer_name, const int layer_index,
-    const int top_blob_index, char* canonical_blob_name) {
-  const size_t num_chars = snprintf(canonical_blob_name, max_chars,
-      "%s__%s_%d_%d", user_blob_name, layer_name, layer_index, top_blob_index);
+    const char* user_blob_name, const char* layer_name,
+    const int top_blob_index, const int num_top, char* canonical_blob_name) {
+  size_t num_chars;
+  if (num_top > 1) {
+    num_chars = snprintf(canonical_blob_name, max_chars, "%s__%s_%d",
+                         user_blob_name, layer_name, top_blob_index);
+  } else {
+    num_chars = snprintf(canonical_blob_name, max_chars, "%s__%s",
+                         user_blob_name, layer_name);
+  }
   // Check that the blob name was not truncated.
   CHECK_LE(num_chars, max_chars);
 }
