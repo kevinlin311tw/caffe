@@ -159,7 +159,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
         memory_used_ += top_vecs_[i][top_id]->count();
     }
     DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
-    int blobs_lr_size = layers_[i]->layer_param().blobs_lr_size();
+    int blobs_lr_size = layer_param.blobs_lr_size();
     int num_param_blobs = layers_[i]->blobs().size();
     CHECK(blobs_lr_size == num_param_blobs || blobs_lr_size == 0)
         << "Incorrect blobs_lr size: should be either 0 or the same as "
@@ -167,8 +167,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     // Check if this layer needs backward operation itself
     if (blobs_lr_size) {
       for (int j = 0; j < blobs_lr_size; ++j) {
-        param_need_backward_[i].push_back(
-            layers_[i]->layer_param().blobs_lr(j) > 0);
+        param_need_backward_[i].push_back(layer_param.blobs_lr(j) > 0);
         layer_need_backward |= param_need_backward_[i][j];
         layers_[i]->set_param_propagate_down(j, param_need_backward_[i][j]);
       }
@@ -177,29 +176,59 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
       // learning rate to be 1. Thus we will need to perform backward.
       layer_need_backward = true;
     }
-    int blob_name_size = layers_[i]->layer_param().blob_name_size();
+    int blob_name_size = layer_param.blob_name_size();
     CHECK(blob_name_size == num_param_blobs || blob_name_size == 0)
         << "Incorrect blob_name size: should be either 0 or the same as "
+           "the number of the layer's parameter blobs: " << num_param_blobs;
+    const int blob_share_mode_size = layer_param.blob_share_mode_size();
+    CHECK(blob_share_mode_size == num_param_blobs || blob_share_mode_size == 0)
+        << "Incorrect blob_share_mode size: should be either 0 or the same as "
            "the number of the layer's parameter blobs: " << num_param_blobs;
     for (int param_id = 0; param_id < blob_name_size; ++param_id) {
       string param_name;
       if (blob_name_size) {
         param_name = layers_[i]->layer_param().blob_name(param_id);
       }
-      if (!blob_name_size ||
-          param_names_index_.find(param_name) == param_names_index_.end()) {
+      if (!blob_name_size || (param_name.size() &&
+          param_names_index_.find(param_name) == param_names_index_.end())) {
+        // This layer "owns" this parameter blob -- it is either anonymous
+        // (i.e., not given a param_name) or explicitly named with a name
+        // we haven't seen.
         param_diff_scales_[i].push_back(0);
         layers_[i]->set_param_accum_down(param_id, 0);
         if (blob_name_size) {
           param_names_index_[param_name] = make_pair(i, param_id);
         }
       } else {
-        // Named param blob with name we've seen before: share weights
+        // Named param blob with name we've seen before: share params
         param_diff_scales_[i].push_back(1);
         layers_[i]->set_param_accum_down(param_id, 1);
         const pair<int, int>& owner_index = param_names_index_[param_name];
         const int owner_layer_id = owner_index.first;
         const int owner_param_id = owner_index.second;
+        LOG(INFO) << "Sharing parameters '" << param_name << "' owned by "
+                  << "layer '" << layer_names_[owner_layer_id] << "', param "
+                  << "index " << owner_param_id;
+        Blob<Dtype>* this_blob = layers_[i]->blobs()[param_id].get();
+        Blob<Dtype>* owner_blob =
+            layers_[owner_layer_id]->blobs()[owner_param_id].get();
+        if (blob_share_mode_size > param_id &&
+            (layer_param.blob_share_mode(param_id) ==
+             LayerParameter_DimCheckMode_PERMISSIVE)) {
+          // Permissive dimension checking -- only check counts are the same.
+          CHECK_EQ(this_blob->count(), owner_blob->count())
+              << "Shared parameter blobs must have the same count.";
+        } else {
+          // Strict dimension checking -- all dims must be the same.
+          CHECK_EQ(this_blob->num(), owner_blob->num())
+              << "Shared parameter blobs must have the same num.";
+          CHECK_EQ(this_blob->channels(), owner_blob->channels())
+              << "Shared parameter blobs must have the same channels.";
+          CHECK_EQ(this_blob->height(), owner_blob->height())
+              << "Shared parameter blobs must have the same height.";
+          CHECK_EQ(this_blob->width(), owner_blob->width())
+              << "Shared parameter blobs must have the same width.";
+        }
         layers_[i]->blobs()[param_id]->ShareData(
             *layers_[owner_layer_id]->blobs()[owner_param_id]);
       }
