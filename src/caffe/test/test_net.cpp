@@ -23,7 +23,8 @@ template <typename Dtype>
 class NetTest : public ::testing::Test {
  protected:
   virtual void SetUp() {  // Create the leveldb
-    Caffe::set_random_seed(1701);
+    seed_ = 1701;
+    Caffe::set_random_seed(seed_);
     filename_.reset(new string(tmpnam(NULL)));  // get temp name
     LOG(INFO) << "Using temporary leveldb " << *filename_;
     leveldb::DB* db;
@@ -148,9 +149,9 @@ class NetTest : public ::testing::Test {
     InitNetFromProto(proto);
   }
 
-  virtual void InitSelfRegressionNet() {
+  virtual void InitUnsharedWeightsNet() {
     const string& proto =
-        "name: 'SelfRegressionNetwork' "
+        "name: 'UnsharedWeightsNetwork' "
         "layers: { "
         "  name: 'data' "
         "  type: DUMMY_DATA "
@@ -174,7 +175,64 @@ class NetTest : public ::testing::Test {
         "    bias_term: false "
         "    weight_filler { "
         "      type: 'gaussian' "
-        "      std: 1 "
+        "      std: 10 "
+        "    } "
+        "  } "
+        "  blob_name: 'unsharedweights1' "
+        "  bottom: 'data' "
+        "  top: 'innerproduct1' "
+        "} "
+        "layers: { "
+        "  name: 'innerproduct2' "
+        "  type: INNER_PRODUCT "
+        "  inner_product_param { "
+        "    num_output: 10 "
+        "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'gaussian' "
+        "      std: 10 "
+        "    } "
+        "  } "
+        "  blob_name: 'unsharedweights2' "
+        "  bottom: 'data' "
+        "  top: 'innerproduct2' "
+        "} "
+        "layers: { "
+        "  name: 'loss' "
+        "  type: EUCLIDEAN_LOSS "
+        "  bottom: 'innerproduct1' "
+        "  bottom: 'innerproduct2' "
+        "} ";
+    InitNetFromProto(proto);
+  }
+
+  virtual void InitSharedWeightsNet() {
+    const string& proto =
+        "name: 'SharedWeightsNetwork' "
+        "layers: { "
+        "  name: 'data' "
+        "  type: DUMMY_DATA "
+        "  dummy_data_param { "
+        "    num: 5 "
+        "    channels: 2 "
+        "    height: 3 "
+        "    width: 4 "
+        "    data_filler { "
+        "      type: 'gaussian' "
+        "      std: 0.01 "
+        "    } "
+        "  } "
+        "  top: 'data' "
+        "} "
+        "layers: { "
+        "  name: 'innerproduct1' "
+        "  type: INNER_PRODUCT "
+        "  inner_product_param { "
+        "    num_output: 10 "
+        "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'gaussian' "
+        "      std: 10 "
         "    } "
         "  } "
         "  blob_name: 'sharedweights' "
@@ -189,11 +247,7 @@ class NetTest : public ::testing::Test {
         "    bias_term: false "
         "    weight_filler { "
         "      type: 'gaussian' "
-        "      std: 1 "
-        "    } "
-        "    bias_filler { "
-        "      type: 'constant' "
-        "      value: 0 "
+        "      std: 10 "
         "    } "
         "  } "
         "  blob_name: 'sharedweights' "
@@ -209,6 +263,7 @@ class NetTest : public ::testing::Test {
     InitNetFromProto(proto);
   }
 
+  int seed_;
   shared_ptr<string> filename_;
   shared_ptr<Net<Dtype> > net_;
 };
@@ -313,12 +368,52 @@ TYPED_TEST(NetTest, TestBlobBottomDiffScales) {
   EXPECT_EQ(1, bottom_diff_scales[3][1]);
 }
 
-TYPED_TEST(NetTest, TestSelfRegressionNet) {
-  this->InitSelfRegressionNet();
+TYPED_TEST(NetTest, TestUnsharedWeightsDataNet) {
+  this->InitUnsharedWeightsNet();
   vector<Blob<TypeParam>*> bottom;
   TypeParam loss;
   this->net_->Forward(bottom, &loss);
-  EXPECT_EQ(loss, 0);
+  EXPECT_GT(loss, 0);
+}
+
+TYPED_TEST(NetTest, TestSharedWeightsDataNet) {
+  this->InitSharedWeightsNet();
+  vector<Blob<TypeParam>*> bottom;
+  TypeParam loss;
+  this->net_->Forward(bottom, &loss);
+  EXPECT_FLOAT_EQ(loss, 0);
+}
+
+TYPED_TEST(NetTest, TestUnsharedWeightsDiffNet) {
+  this->InitUnsharedWeightsNet();
+  vector<Blob<TypeParam>*> bottom;
+  TypeParam loss;
+  this->net_->Forward(bottom, &loss);
+  this->net_->Backward();
+  EXPECT_GT(loss, 0);
+  const int count = this->net_->layers()[1]->blobs()[0]->count();
+  const TypeParam* grad1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
+  const TypeParam* grad2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
+  for (int i = 0; i < count; ++i) {
+    EXPECT_GT(fabs(grad1[i]), 0);
+    EXPECT_FLOAT_EQ(-1 * grad1[i], grad2[i]);
+  }
+}
+
+TYPED_TEST(NetTest, TestSharedWeightsDiffNet) {
+  this->InitSharedWeightsNet();
+  vector<Blob<TypeParam>*> bottom;
+  TypeParam loss;
+  this->net_->Forward(bottom, &loss);
+  this->net_->Backward();
+  EXPECT_FLOAT_EQ(loss, 0);
+  const int count = this->net_->layers()[1]->blobs()[0]->count();
+  const TypeParam* grad1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
+  const TypeParam* grad2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
+  for (int i = 0; i < count; ++i) {
+    EXPECT_FLOAT_EQ(0, grad1[i]);
+    EXPECT_FLOAT_EQ(0, grad2[i]);
+  }
 }
 
 }  // namespace caffe
