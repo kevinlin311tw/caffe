@@ -98,7 +98,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   // Add randomly generated noise to the diff of each of the bottom
   // blobs_to_check.  We will subtract this noise off after the gradient is
-  // computed.  This ensures that the layer's AccumBackward noises the diff
+  // computed.  This ensures that the layer's AccumBackward increments the diff
   // blob by its gradient, rather than just overwriting it.
   Caffe::set_random_seed(seed_);
   FillerParameter noise_filler_param;
