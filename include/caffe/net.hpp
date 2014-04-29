@@ -114,20 +114,20 @@ class Net {
   const vector<vector<bool> >& bottom_diff_scales() {
     return bottom_diff_scales_;
   }
-  const map<string, pair<int, int> >& param_names_index() {
-    return param_names_index_;
-  }
+  const map<string, int>& param_names_index() { return param_names_index_; }
 
  protected:
+  // Helpers for Init.
+  // Append a new input or top blob to the net.
+  int AppendTop(const NetParameter& param, const int layer_index,
+      const int top_index);
+  // Append a new bottom blob to the net.
+  int AppendBottom(const NetParameter& param, const int layer_index,
+      const int bottom_index);
   // Function to get misc parameters, e.g. the learning rate multiplier and
   // weight decay.
   void GetLearningRateAndWeightDecay();
-
-  // Helpers for Init
-  int AppendTop(const NetParameter& param, const int layer_index,
-      const int top_index);
-  int AppendBottom(const NetParameter& param, const int layer_index,
-      const int bottom_index);
+  // Make a unique internal blob name from a non-unique user blob name.
   void CanonicalBlobName(const size_t max_chars, const char* user_blob_name,
       const char* layer_name, const int layer_index, const int top_blob_index,
       char* canonical_blob_name);
@@ -157,10 +157,6 @@ class Net {
   // blob_idx_to_bottom_idx maps blob_idx ->
   //     [ (layer_idx_1, bottom_idx_1), (layer_idx_2, bottom_idx_2), ... ]
   vector<vector<pair<int, int> > > blob_bottom_indices_;
-  // top_idx_to_blob_idx maps (layer_idx, top_idx) -> blob_idx
-  map<pair<int, int>, int> top_index_to_blob_index_;
-  // bottom_idx_to_blob_idx maps (layer_idx, bottom_idx) -> blob_idx
-  map<pair<int, int>, int> bottom_index_to_blob_index_;
   // bottom_vecs stores the vectors containing the input for each layer.
   // They don't actually host the blobs (blobs_ does), so we simply store
   // pointers.
@@ -171,13 +167,9 @@ class Net {
   // top_vecs stores the vectors containing the output for each layer
   vector<vector<Blob<Dtype>*> > top_vecs_;
   vector<vector<int> > top_id_vecs_;
-  // param_vecs stores the vectors containing the learnable parameters for each
-  // layer.
-  vector<vector<Blob<Dtype>*> > param_vecs_;
-  vector<vector<int> > param_id_vecs_;
-  vector<vector<bool> > param_diff_scales_;
-  vector<vector<bool> > param_need_backward_;
-  map<string, pair<int, int> > param_names_index_;
+  vector<int> param_owners_;
+  vector<pair<int, int> > param_net_indices_;
+  map<string, int> param_names_index_;
   // blob indices for the input and the output of the net
   vector<int> net_input_blob_indices_;
   vector<Blob<Dtype>*> net_input_blobs_;

@@ -293,11 +293,11 @@ class NetTest : public ::testing::Test {
         "    num_output: 10 "
         "    bias_term: false "
         "    weight_filler { "
-        "      type: 'gaussian' "
-        "      std: 5 "
+        "      type: 'constant' "
+        "      value: 0.5 "
         "    } "
         "  } "
-        "  blob_name: 'sharedweights' "
+        "  blob_name: 'unsharedweights1' "
         "  bottom: 'data1' "
         "  top: 'innerproduct1' "
         "} "
@@ -307,8 +307,12 @@ class NetTest : public ::testing::Test {
         "  inner_product_param { "
         "    num_output: 10 "
         "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'constant' "
+        "      value: 0.5 "
+        "    } "
         "  } "
-        "  blob_name: 'sharedweights' "
+        "  blob_name: 'unsharedweights2' "
         "  bottom: 'innerproduct1' "
         "  top: 'innerproduct2' "
         "} "
@@ -351,8 +355,8 @@ class NetTest : public ::testing::Test {
         "    num_output: 10 "
         "    bias_term: false "
         "    weight_filler { "
-        "      type: 'gaussian' "
-        "      std: 5 "
+        "      type: 'constant' "
+        "      value: 0.5 "
         "    } "
         "  } "
         "  blob_name: 'sharedweights' "
@@ -365,6 +369,10 @@ class NetTest : public ::testing::Test {
         "  inner_product_param { "
         "    num_output: 10 "
         "    bias_term: false "
+        "    weight_filler { "
+        "      type: 'constant' "
+        "      value: 0.5 "
+        "    } "
         "  } "
         "  blob_name: 'sharedweights' "
         "  bottom: 'innerproduct1' "
@@ -536,12 +544,12 @@ TYPED_TEST(NetTest, TestSharedWeightsGradient) {
   const bool copy_diff = true;
   const bool reshape = true;
 
+  Caffe::set_random_seed(this->seed_);
   this->InitDiffDataSharedWeightsNet();
   vector<Blob<TypeParam>*> bottom;
   TypeParam shared_loss;
   this->net_->Forward(bottom, &shared_loss);
   this->net_->Backward();
-  EXPECT_FLOAT_EQ(shared_loss, 0);
   EXPECT_EQ(this->net_->layer_names()[1], "innerproduct1");
   EXPECT_EQ(this->net_->layer_names()[2], "innerproduct2");
   Blob<TypeParam> shared_grad1;
@@ -551,37 +559,41 @@ TYPED_TEST(NetTest, TestSharedWeightsGradient) {
   shared_grad2.CopyFrom(*this->net_->layers()[2]->blobs()[0],
                         copy_diff, reshape);
   const int count = this->net_->layers()[2]->blobs()[0]->count();
+  // Check that data blobs of shared weights point to the same memory location.
+  const TypeParam* data1 = this->net_->layers()[1]->blobs()[0]->cpu_data();
+  const TypeParam* data2 = this->net_->layers()[2]->blobs()[0]->cpu_data();
+  EXPECT_EQ(data1, data2);
+  // Check that diff blobs of shared weights point to different memory
+  // locations.  (The diffs should be accumulated at update time.)
+  const TypeParam* diff1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
+  const TypeParam* diff2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
+  EXPECT_NE(diff1, diff2);
 
+  Caffe::set_random_seed(this->seed_);
   this->InitDiffDataUnsharedWeightsNet();
   TypeParam unshared_loss;
   this->net_->Forward(bottom, &unshared_loss);
   this->net_->Backward();
-  EXPECT_FLOAT_EQ(unshared_loss, 0);
   EXPECT_EQ(this->net_->layer_names()[1], "innerproduct1");
   EXPECT_EQ(this->net_->layer_names()[2], "innerproduct2");
   Blob<TypeParam> unshared_grad1;
   unshared_grad1.CopyFrom(*this->net_->layers()[1]->blobs()[0],
-                        copy_diff, reshape);
+                          copy_diff, reshape);
   Blob<TypeParam> unshared_grad2;
   unshared_grad2.CopyFrom(*this->net_->layers()[2]->blobs()[0],
-                        copy_diff, reshape);
-}
+                          copy_diff, reshape);
 
-// TYPED_TEST(NetTest, TestUnsharedWeightsGradient) {
-//   this->InitDiffDataUnsharedWeightsNet();
-//   vector<Blob<TypeParam>*> bottom;
-//   TypeParam loss;
-//   this->net_->Forward(bottom, &loss);
-//   this->net_->Backward();
-//   EXPECT_FLOAT_EQ(loss, 0);
-//   const int count = this->net_->layers()[1]->blobs()[0]->count();
-//   const TypeParam* grad1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
-//   const TypeParam* grad2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
-//   for (int i = 0; i < count; ++i) {
-//     EXPECT_FLOAT_EQ(-grad2[i], grad1[i]);
-//     EXPECT_FLOAT_EQ(0, grad1[i]);
-//     EXPECT_FLOAT_EQ(0, grad2[i]);
-//   }
-// }
+  EXPECT_EQ(shared_loss, unshared_loss);
+  // Check that data blobs of unshared weights point to different memory
+  // locations.
+  data1 = this->net_->layers()[1]->blobs()[0]->cpu_data();
+  data2 = this->net_->layers()[2]->blobs()[0]->cpu_data();
+  EXPECT_NE(data1, data2);
+  // Check that diff blobs of unshared weights point to different memory
+  // locations.
+  diff1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
+  diff2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
+  EXPECT_NE(diff1, diff2);
+}
 
 }  // namespace caffe

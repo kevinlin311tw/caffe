@@ -141,9 +141,6 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       filler.Fill((*top)[i]);
     }
   }
-  for (int i = 0; i < layer->blobs().size(); ++i) {
-    layer->set_param_accum_down(i, true);
-  }
   vector<bool> accum_down(bottom->size(), true);
   layer->AccumBackward(*top, propagate_down, accum_down, bottom);
   // Store computed gradients for all checked blobs, subtracting the increment.
