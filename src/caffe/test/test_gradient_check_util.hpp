@@ -78,39 +78,45 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   // First, figure out what blobs we need to check against.
   vector<Blob<Dtype>*> blobs_to_check;
+  vector<bool> add_noise;
   vector<bool> propagate_down(bottom->size(), false);
   for (int i = 0; i < layer->blobs().size(); ++i) {
     blobs_to_check.push_back(layer->blobs()[i].get());
+    add_noise.push_back(false);
   }
   if (check_bottom < 0) {
     for (int i = 0; i < bottom->size(); ++i) {
       blobs_to_check.push_back((*bottom)[i]);
       propagate_down[i] = true;
+      add_noise.push_back(true);
     }
   } else {
     CHECK(check_bottom < bottom->size());
     blobs_to_check.push_back((*bottom)[check_bottom]);
+    add_noise.push_back(true);
     propagate_down[check_bottom] = true;
   }
-  // Add randomly generated noise to the diff of each of the blobs_to_check --
-  // we will subtract this off after the gradient is computed.  This ensures
-  // that the layer's AccumBackward increments the diff blob by its gradient,
-  // rather than just overwriting it.
+  // Add randomly generated noise to the diff of each of the bottom
+  // blobs_to_check.  We will subtract this noise off after the gradient is
+  // computed.  This ensures that the layer's AccumBackward noises the diff
+  // blob by its gradient, rather than just overwriting it.
   Caffe::set_random_seed(seed_);
-  FillerParameter increment_filler_param;
-  increment_filler_param.set_mean(10);
-  increment_filler_param.set_std(1);
-  GaussianFiller<Dtype> increment_filler(increment_filler_param);
-  vector<shared_ptr<Blob<Dtype> > > increment_blobs(blobs_to_check.size());
+  FillerParameter noise_filler_param;
+  noise_filler_param.set_mean(10);
+  noise_filler_param.set_std(1);
+  GaussianFiller<Dtype> noise_filler(noise_filler_param);
+  vector<shared_ptr<Blob<Dtype> > > noise_blobs(blobs_to_check.size());
   for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
-    Blob<Dtype>* current_blob = blobs_to_check[blob_id];
-    increment_blobs[blob_id].reset(new Blob<Dtype>());
-    increment_blobs[blob_id]->ReshapeLike(*current_blob);
-    increment_filler.Fill(increment_blobs[blob_id].get());
-    const int count = current_blob->count();
-    const Dtype* increment = increment_blobs[blob_id]->cpu_data();
-    Dtype* current_diff = current_blob->mutable_cpu_diff();
-    caffe_copy(count, increment, current_diff);
+    if (add_noise[blob_id]) {
+     Blob<Dtype>* current_blob = blobs_to_check[blob_id];
+     noise_blobs[blob_id].reset(new Blob<Dtype>());
+     noise_blobs[blob_id]->ReshapeLike(*current_blob);
+     noise_filler.Fill(noise_blobs[blob_id].get());
+     const int count = current_blob->count();
+     const Dtype* noise = noise_blobs[blob_id]->cpu_data();
+     Dtype* current_diff = current_blob->mutable_cpu_diff();
+     caffe_copy(count, noise, current_diff);
+    }
   }
   // Compute the gradient analytically using Backward
   Caffe::set_random_seed(seed_);
@@ -143,7 +149,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   vector<bool> accum_down(bottom->size(), true);
   layer->AccumBackward(*top, propagate_down, accum_down, bottom);
-  // Store computed gradients for all checked blobs, subtracting the increment.
+  // Store computed gradients for all checked blobs, subtracting the noise.
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());
   for (int blob_id = 0; blob_id < blobs_to_check.size(); ++blob_id) {
@@ -152,10 +158,14 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     computed_gradient_blobs[blob_id]->ReshapeLike(*current_blob);
     const int count = blobs_to_check[blob_id]->count();
     const Dtype* diff = blobs_to_check[blob_id]->cpu_diff();
-    const Dtype* increment = increment_blobs[blob_id]->cpu_data();
     Dtype* computed_gradients =
         computed_gradient_blobs[blob_id]->mutable_cpu_data();
-    caffe_sub(count, diff, increment, computed_gradients);
+    if (add_noise[blob_id]) {
+      const Dtype* noise = noise_blobs[blob_id]->cpu_data();
+      caffe_sub(count, diff, noise, computed_gradients);
+    } else {
+      caffe_copy(count, diff, computed_gradients);
+    }
   }
   // Restore original bottom data for finite differencing if we corrupted it.
   for (int i = 0; i < bottom->size(); ++i) {
