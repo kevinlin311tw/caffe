@@ -293,8 +293,8 @@ void Layer<Dtype>::AccumBackward_cpu(const vector<Blob<Dtype>*>& top,
       if (!accum_bottom_blobs_[bottom_id]) {
         accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
         accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-        accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
       }
+      accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
       orig_bottom[bottom_id] = (*bottom)[bottom_id];
       (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
     }
@@ -325,8 +325,8 @@ void Layer<Dtype>::AccumBackward_gpu(const vector<Blob<Dtype>*>& top,
       if (!accum_bottom_blobs_[bottom_id]) {
         accum_bottom_blobs_[bottom_id].reset(new Blob<Dtype>());
         accum_bottom_blobs_[bottom_id]->ReshapeLike(*(*bottom)[bottom_id]);
-        accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
       }
+      accum_bottom_blobs_[bottom_id]->CopyFrom(*(*bottom)[bottom_id]);
       orig_bottom[bottom_id] = (*bottom)[bottom_id];
       (*bottom)[bottom_id] = accum_bottom_blobs_[bottom_id].get();
     }
