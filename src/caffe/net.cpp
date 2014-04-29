@@ -235,7 +235,7 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_index,
     canonical_blob_name_display << " (" << blob_name << ")";
   }
   LOG(INFO) << layer_param.name() << " -> " << blob_name
-            << canonical_blob_name_display;
+            << canonical_blob_name_display.str();
   blob_names_.push_back(blob_name);
   user_blob_name_to_current_index_[user_blob_name] = blob_id;
   blob_top_index_.push_back(make_pair(layer_index, top_index));
@@ -274,7 +274,7 @@ int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_index,
     canonical_blob_name_display << " (" << blob_name << ")";
   }
   LOG(INFO) << layer_param.name() << " <- " << user_blob_name
-            << canonical_blob_name_display;
+            << canonical_blob_name_display.str();
   bottom_vecs_[layer_index].push_back(blobs_[blob_id].get());
   bottom_id_vecs_[layer_index].push_back(blob_id);
   const int current_num_consumers = blob_bottom_indices_[blob_id].size();
