@@ -121,7 +121,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     bottom_need_backward_[layer_id].clear();
     top_vecs_[layer_id].clear();
     top_id_vecs_[layer_id].clear();
-    bool in_place = false;  // TODO: implement in_place computation.
+    bool in_place = false;  // TODO: implement in-place computation.
     const LayerParameter& layer_param = param.layers(layer_id);
     layers_.push_back(shared_ptr<Layer<Dtype> >(GetLayer<Dtype>(layer_param)));
     layer_names_.push_back(layer_param.name());

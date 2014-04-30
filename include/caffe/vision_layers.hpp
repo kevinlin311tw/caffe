@@ -508,10 +508,10 @@ class HingeLossLayer : public Layer<Dtype> {
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual inline const char* LayerType() { return "Im2col"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline int ExactNumBottomBlobs() { return 2; }
+  virtual inline int ExactNumTopBlobs() { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
+  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -522,6 +522,11 @@ class HingeLossLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
   // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
   //     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom);
+
+  Blob<Dtype> loss_per_datum_;
+  int count_;
+  int num_;
+  int dim_;
 };
 
 template <typename Dtype>

@@ -123,12 +123,11 @@ template <typename Dtype>
 void EuclideanLossLayer<Dtype>::SetUp(
   const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
   CHECK_EQ(bottom[0]->num(), bottom[1]->num())
-      << "The data and label should have the same number.";
+      << "The data and labels should have the same number.";
   CHECK_EQ(bottom[0]->channels(), bottom[1]->channels());
   CHECK_EQ(bottom[0]->height(), bottom[1]->height());
   CHECK_EQ(bottom[0]->width(), bottom[1]->width());
-  difference_.Reshape(bottom[0]->num(), bottom[0]->channels(),
-      bottom[0]->height(), bottom[0]->width());
+  difference_.ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
@@ -205,30 +204,29 @@ Dtype AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void HingeLossLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
     vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 2) << "Hinge Loss Layer takes two blobs as input.";
-  CHECK_EQ(top->size(), 0) << "Hinge Loss Layer takes no output.";
+  count_ = bottom[0]->count();
+  num_ = bottom[0]->num();
+  dim_ = count_ / num_;
+  CHECK_EQ(num_, bottom[1]->num())
+      << "The data and labels should have the same number.";
+  loss_per_datum_.ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
 Dtype HingeLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     vector<Blob<Dtype>*>* top) {
   const Dtype* bottom_data = bottom[0]->cpu_data();
-  Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+  Dtype* loss_per_datum = loss_per_datum_.mutable_cpu_data();
   const Dtype* label = bottom[1]->cpu_data();
-  int num = bottom[0]->num();
-  int count = bottom[0]->count();
-  int dim = count / num;
-
-  caffe_copy(count, bottom_data, bottom_diff);
-  for (int i = 0; i < num; ++i) {
-    bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
-  }
-  for (int i = 0; i < num; ++i) {
-    for (int j = 0; j < dim; ++j) {
-      bottom_diff[i * dim + j] = max(Dtype(0), 1 + bottom_diff[i * dim + j]);
+  for (int i = 0; i < num_; ++i) {
+    const int label_index = static_cast<int>(label[i]);
+    for (int j = 0; j < dim_; ++j) {
+      const int sign = (j == label_index) ? -1 : 1;
+      loss_per_datum[i * dim_ + j] =
+          max(Dtype(0), 1 + sign * bottom_data[i * dim_ + j]);
     }
   }
-  return caffe_cpu_asum(count, bottom_diff) / num;
+  return caffe_cpu_asum(count_, loss_per_datum) / num_;
 }
 
 template <typename Dtype>
@@ -238,17 +236,14 @@ void HingeLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     NOT_IMPLEMENTED;  // Cannot backprop to labels.
   }
   if (propagate_down[0]) {
+    const Dtype* loss_per_datum = loss_per_datum_.cpu_data();
     Dtype* bottom_diff = (*bottom)[0]->mutable_cpu_diff();
     const Dtype* label = (*bottom)[1]->cpu_data();
-    int num = (*bottom)[0]->num();
-    int count = (*bottom)[0]->count();
-    int dim = count / num;
-
-    caffe_cpu_sign(count, bottom_diff, bottom_diff);
-    for (int i = 0; i < num; ++i) {
-      bottom_diff[i * dim + static_cast<int>(label[i])] *= -1;
+    caffe_cpu_sign(count_, loss_per_datum, bottom_diff);
+    for (int i = 0; i < num_; ++i) {
+      bottom_diff[i * dim_ + static_cast<int>(label[i])] *= -1;
     }
-    caffe_scal(count, Dtype(1. / num), bottom_diff);
+    caffe_scal(count_, Dtype(1. / num_), bottom_diff);
   }
 }
 
