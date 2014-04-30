@@ -184,7 +184,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     CHECK(blob_share_mode_size == num_param_blobs || blob_share_mode_size == 0)
         << "Incorrect blob_share_mode size: should be either 0 or the same as "
            "the number of the layer's parameter blobs: " << num_param_blobs;
-    for (int param_id = 0; param_id < blob_name_size; ++param_id) {
+    for (int param_id = 0; param_id < num_param_blobs; ++param_id) {
       string param_name;
       if (blob_name_size) {
         param_name = layer_param.blob_name(param_id);
@@ -469,8 +469,8 @@ template <typename Dtype>
 void Net<Dtype>::Backward() {
   for (int i = layers_.size() - 1; i >= 0; --i) {
     if (layer_need_backward_[i]) {
-      layers_[i]->Backward(top_vecs_[i], bottom_need_backward_[i],
-                           &bottom_vecs_[i]);
+      layers_[i]->AccumBackward(top_vecs_[i], bottom_need_backward_[i],
+                                bottom_diff_scales_[i], &bottom_vecs_[i]);
     }
   }
 }
@@ -593,6 +593,7 @@ void Net<Dtype>::Update() {
   for (int i = 0; i < params_.size(); ++i) {
     if (param_owners_[i] < 0) {
       params_[i]->Update();
+    } else {
     }
   }
 }
