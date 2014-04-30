@@ -510,8 +510,10 @@ class HingeLossLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() { return "Im2col"; }
   virtual inline int ExactNumBottomBlobs() { return 2; }
   virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) {
+    // Uses label (bottom_index == 1) only.
+    return static_cast<bool>(bottom_index);
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
