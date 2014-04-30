@@ -26,6 +26,7 @@ class NetTest : public ::testing::Test {
   virtual void SetUp() {  // Create the leveldb
     seed_ = 1701;
     Caffe::set_random_seed(seed_);
+    Caffe::set_mode(Caffe::CPU);
     filename_.reset(new string(tmpnam(NULL)));  // get temp name
     LOG(INFO) << "Using temporary leveldb " << *filename_;
     leveldb::DB* db;

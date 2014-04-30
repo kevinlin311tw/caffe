@@ -594,7 +594,6 @@ void Net<Dtype>::Update() {
   for (int i = 0; i < params_.size(); ++i) {
     if (param_owners_[i] < 0) {
       params_[i]->Update();
-    } else {
     }
   }
 }
