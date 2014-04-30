@@ -23,11 +23,11 @@ Dtype EltwiseProductLayer<Dtype>::Forward_gpu(
 template <typename Dtype>
 void EltwiseProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
-  if (propagate_down[0]) {
-    const int count = top[0]->count();
-    const Dtype* top_data = top[0]->gpu_data();
-    const Dtype* top_diff = top[0]->gpu_diff();
-    for (int i = 0; i < bottom->size(); ++i) {
+  const int count = top[0]->count();
+  const Dtype* top_data = top[0]->gpu_data();
+  const Dtype* top_diff = top[0]->gpu_diff();
+  for (int i = 0; i < bottom->size(); ++i) {
+    if (propagate_down[i]) {
       const Dtype* bottom_data = (*bottom)[i]->gpu_data();
       Dtype* bottom_diff = (*bottom)[i]->mutable_gpu_diff();
       caffe_gpu_div(count, top_data, bottom_data, bottom_diff);
