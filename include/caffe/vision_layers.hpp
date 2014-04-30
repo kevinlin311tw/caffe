@@ -33,10 +33,12 @@ class NeuronLayer : public Layer<Dtype> {
      : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Neuron"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool ElementwiseOnlyComputation() { return true; }
+  virtual inline const char* LayerType() const { return "Neuron"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ElementwiseOnlyComputation() const {
+    return true;
+  }
 };
 
 template <typename Dtype>
@@ -44,9 +46,13 @@ class BNLLLayer : public NeuronLayer<Dtype> {
  public:
   explicit BNLLLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
-  virtual inline const char* LayerType() { return "BNLL"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "BNLL"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -66,9 +72,13 @@ class DropoutLayer : public NeuronLayer<Dtype> {
       : NeuronLayer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Dropout"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "Dropout"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -93,11 +103,11 @@ class PowerLayer : public NeuronLayer<Dtype> {
       : NeuronLayer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Power"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) {
+  virtual inline const char* LayerType() const { return "Power"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return diff_scale_ != Dtype(0) && power_ != Dtype(1);
   }
-  virtual inline bool BackwardUsesTopData(int top_index) {
+  virtual inline bool BackwardUsesTopData(int top_index) const {
     return diff_scale_ != Dtype(0) && power_ != Dtype(1) && power_ != Dtype(2);
   }
 
@@ -122,9 +132,13 @@ class ReLULayer : public NeuronLayer<Dtype> {
  public:
   explicit ReLULayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
-  virtual inline const char* LayerType() { return "ReLU"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "ReLU"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -143,9 +157,13 @@ class SigmoidLayer : public NeuronLayer<Dtype> {
  public:
   explicit SigmoidLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
-  virtual inline const char* LayerType() { return "Sigmoid"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline const char* LayerType() const { return "Sigmoid"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -163,9 +181,13 @@ class TanHLayer : public NeuronLayer<Dtype> {
  public:
   explicit TanHLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
-  virtual inline const char* LayerType() { return "TanH"; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline const char* LayerType() const { return "TanH"; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -186,11 +208,15 @@ class AccuracyLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Accuracy"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "Accuracy"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -209,11 +235,15 @@ class ConcatLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Concat"; }
-  virtual inline int MinNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "Concat"; }
+  virtual inline int MinNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -241,11 +271,15 @@ class ConvolutionLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Convolution"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "Convolution"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -289,11 +323,13 @@ class DataLayer : public Layer<Dtype> {
   virtual ~DataLayer();
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Data"; }
-  virtual inline int ExactNumBottomBlobs() { return 0; }
-  virtual inline int MinNumTopBlobs() { return 1; }
-  virtual inline int MaxNumTopBlobs() { return 2; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "Data"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int MinNumTopBlobs() const { return 1; }
+  virtual inline int MaxNumTopBlobs() const { return 2; }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -336,9 +372,9 @@ class DummyDataLayer : public Layer<Dtype> {
   virtual ~DummyDataLayer() {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "DummyData"; }
-  virtual inline int ExactNumBottomBlobs() { return 0; }
-  virtual inline int MinNumTopBlobs() { return 1; }
+  virtual inline const char* LayerType() const { return "DummyData"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int MinNumTopBlobs() const { return 1; }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -364,12 +400,18 @@ class EltwiseProductLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "EltwiseProduct"; }
-  virtual inline int MinNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
-  virtual inline bool ElementwiseOnlyComputation() { return true; }
+  virtual inline const char* LayerType() const { return "EltwiseProduct"; }
+  virtual inline int MinNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
+  virtual inline bool ElementwiseOnlyComputation() const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -389,11 +431,15 @@ class EuclideanLossLayer : public Layer<Dtype> {
       : Layer<Dtype>(param), difference_() {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "EuclideanLoss"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "EuclideanLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -415,12 +461,18 @@ class FlattenLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Flatten"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
-  virtual inline bool ElementwiseOnlyComputation() { return true; }
+  virtual inline const char* LayerType() const { return "Flatten"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
+  virtual inline bool ElementwiseOnlyComputation() const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -442,12 +494,16 @@ class HDF5OutputLayer : public Layer<Dtype> {
   virtual ~HDF5OutputLayer();
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top) {}
-  virtual inline const char* LayerType() { return "HDF5Output"; }
+  virtual inline const char* LayerType() const { return "HDF5Output"; }
   // TODO: no limit on the number of blobs
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
   std::string file_name() { return file_name_; }
 
  protected:
@@ -479,10 +535,12 @@ class HDF5DataLayer : public Layer<Dtype> {
   virtual ~HDF5DataLayer();
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "HDF5Data"; }
-  virtual inline int ExactNumBottomBlobs() { return 0; }
-  virtual inline int ExactNumTopBlobs() { return 2; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "HDF5Data"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int ExactNumTopBlobs() const { return 2; }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -510,10 +568,10 @@ class HingeLossLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Im2col"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) {
+  virtual inline const char* LayerType() const { return "HingeLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     // Uses label (bottom_index == 1) only.
     return static_cast<bool>(bottom_index);
   }
@@ -541,6 +599,7 @@ class Im2colLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
+  virtual inline const char* LayerType() const { return "Im2col"; }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -575,10 +634,12 @@ class ImageDataLayer : public Layer<Dtype> {
   virtual ~ImageDataLayer();
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "ImageData"; }
-  virtual inline int ExactNumBottomBlobs() { return 0; }
-  virtual inline int ExactNumTopBlobs() { return 2; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "ImageData"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int ExactNumTopBlobs() const { return 2; }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -620,10 +681,12 @@ class InfogainLossLayer : public Layer<Dtype> {
       : Layer<Dtype>(param), infogain_() {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "InfogainLoss"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
+  virtual inline const char* LayerType() const { return "InfogainLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -645,11 +708,15 @@ class InnerProductLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "InnerProduct"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "InnerProduct"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -679,11 +746,15 @@ class LRNLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "LocalResponseNorm"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline const char* LayerType() const { return "LocalResponseNorm"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -789,10 +860,14 @@ class MultinomialLogisticLossLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "MultinomialLogisticLoss"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
+  virtual inline const char* LayerType() const {
+    return "MultinomialLogisticLoss";
+  }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -812,16 +887,16 @@ class PoolingLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Pooling"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
+  virtual inline const char* LayerType() const { return "Pooling"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
   // TODO: once max-pooling uses a mask, both of these can be changed to simply
   // "return false;".
-  virtual inline bool BackwardUsesBottomData(int bottom_index) {
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return (this->layer_param_.pooling_param().pool() ==
             PoolingParameter_PoolMethod_MAX);
   }
-  virtual inline bool BackwardUsesTopData(int top_index) {
+  virtual inline bool BackwardUsesTopData(int top_index) const {
     return (this->layer_param_.pooling_param().pool() ==
             PoolingParameter_PoolMethod_MAX);
   }
@@ -856,11 +931,14 @@ class SigmoidCrossEntropyLossLayer : public Layer<Dtype> {
           sigmoid_output_(new Blob<Dtype>()) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "SigmoidCrossEntropyLoss"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) {
-    return bottom_index != 0;
+  virtual inline const char* LayerType() const {
+    return "SigmoidCrossEntropyLoss";
+  }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    // Uses label (bottom_index == 1) only.
+    return static_cast<bool>(bottom_index);
   }
 
  protected:
@@ -888,11 +966,15 @@ class SoftmaxLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Softmax"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int ExactNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline const char* LayerType() const { return "Softmax"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -922,11 +1004,12 @@ class SoftmaxWithLossLayer : public Layer<Dtype> {
       : Layer<Dtype>(param), softmax_layer_(new SoftmaxLayer<Dtype>(param)) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "SoftmaxLoss"; }
-  virtual inline int ExactNumBottomBlobs() { return 2; }
-  virtual inline int ExactNumTopBlobs() { return 0; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) {
-    return bottom_index != 0;
+  virtual inline const char* LayerType() const { return "SoftmaxLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    // Uses label (bottom_index == 1) only.
+    return static_cast<bool>(bottom_index);
   }
 
  protected:
@@ -954,12 +1037,16 @@ class SplitLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "Split"; }
-  virtual inline int ExactNumBottomBlobs() { return 1; }
-  virtual inline int MinNumTopBlobs() { return 1; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return false; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
-  virtual inline bool ElementwiseOnlyComputation() { return true; }
+  virtual inline const char* LayerType() const { return "Split"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int MinNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return false;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
+  virtual inline bool ElementwiseOnlyComputation() const { return true; }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -989,10 +1076,12 @@ class WindowDataLayer : public Layer<Dtype> {
   virtual ~WindowDataLayer();
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
-  virtual inline const char* LayerType() { return "WindowData"; }
-  virtual inline int ExactNumBottomBlobs() { return 0; }
-  virtual inline int ExactNumTopBlobs() { return 2; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return false; }
+  virtual inline const char* LayerType() const { return "WindowData"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+  virtual inline int ExactNumTopBlobs() const { return 2; }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,

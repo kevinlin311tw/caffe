@@ -102,7 +102,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   CHECK_EQ(param.input_size() * 4, param.input_dim_size())
       << "Incorrect bottom blob dimension specifications.";
   for (int top_id = 0; top_id < param.input_size(); ++top_id) {
-    const int layer_id = -1;  // inputs have fake layer index -1
+    const int layer_id = -1;  // inputs have fake layer ID -1
     AppendTop(param, layer_id, top_id);
   }
   DLOG(INFO) << "Memory required for input: " << memory_used_ * sizeof(Dtype);
@@ -267,13 +267,13 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
 // layer_id == -1, tops have layer_id >= 0.)
 template <typename Dtype>
 int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
-                          const int top_index) {
+                          const int top_id) {
   shared_ptr<Blob<Dtype> > blob_pointer;
   if (layer_id == -1) {
-    blob_pointer.reset(new Blob<Dtype>(param.input_dim(top_index * 4),
-                                       param.input_dim(top_index * 4 + 1),
-                                       param.input_dim(top_index * 4 + 2),
-                                       param.input_dim(top_index * 4 + 3)));
+    blob_pointer.reset(new Blob<Dtype>(param.input_dim(top_id * 4),
+                                       param.input_dim(top_id * 4 + 1),
+                                       param.input_dim(top_id * 4 + 2),
+                                       param.input_dim(top_id * 4 + 3)));
   } else {
     blob_pointer.reset(new Blob<Dtype>());
   }
@@ -282,9 +282,9 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   string user_blob_name;
   const LayerParameter& layer_param = param.layers(layer_id);
   if (layer_id == -1) {
-    user_blob_name = param.input(top_index);
+    user_blob_name = param.input(top_id);
   } else {
-    user_blob_name = layer_param.top(top_index);
+    user_blob_name = layer_param.top(top_id);
   }
   user_blob_names_.push_back(user_blob_name);
   string blob_name;
@@ -299,7 +299,7 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
                         kInputLayerName : layer_param.name();
     char* blob_name_c_str = new char[kMaxBlobNameChars];
     CanonicalBlobName(kMaxBlobNameChars, user_blob_name.c_str(),
-        layer_name.c_str(), top_index, layer_param.top_size(), blob_name_c_str);
+        layer_name.c_str(), top_id, layer_param.top_size(), blob_name_c_str);
     blob_name = blob_name_c_str;
     canonical_blob_name_display << " (" << blob_name << ")";
   }
@@ -307,7 +307,7 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
             << canonical_blob_name_display.str();
   blob_names_.push_back(blob_name);
   user_blob_name_to_current_index_[user_blob_name] = blob_id;
-  blob_top_index_.push_back(make_pair(layer_id, top_index));
+  blob_top_index_.push_back(make_pair(layer_id, top_id));
   vector<pair<int, int> > bottom_indices;
   blob_bottom_indices_.push_back(bottom_indices);
   blob_need_backward_.push_back(param.force_backward());
@@ -319,7 +319,36 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   } else {
     top_id_vecs_[layer_id].push_back(blob_id);
     top_vecs_[layer_id].push_back(blob_pointer.get());
-    // Decide if we can do in-place computation.
+    // Decide if we can do in-place computation for the data.
+    bool in_place_data = true;
+    const int num_bottom = bottom_vecs_[layer_id].size();
+    const int bottom_blob_id = bottom_id_vecs_[layer_id][top_id];
+    if (top_id >= num_bottom ||
+        layers_[layer_id]->ForwardReusesBottomData(top_id) ||
+        layers_[layer_id]->BackwardUsesBottomData(top_id)) {
+      in_place_data = false;
+    } else {
+      const pair<int, int>& producer_index = blob_top_index_[bottom_blob_id];
+      const Layer<Dtype>& producer_layer = *layers_[producer_index.first];
+      const int producer_top_id = producer_index.second;
+      if (producer_layer.BackwardUsesTopData(producer_top_id)) {
+        in_place_data = false;
+      }
+    }
+    if (in_place_data) {
+      LOG(INFO) << "Doing in-place forward computation.";
+      blobs_[blob_id]->ShareData(*blobs_[bottom_blob_id]);
+    }
+    // Decide if we can do in-place computation for the diff.
+    bool in_place_diff = true;
+    if (top_id >= num_bottom ||
+        layers_[layer_id]->BackwardReusesTopDiff(top_id)) {
+      in_place_diff = false;
+    }
+    if (in_place_diff) {
+      LOG(INFO) << "Doing in-place backward computation.";
+      blobs_[blob_id]->ShareDiff(*blobs_[bottom_blob_id]);
+    }
   }
   return blob_id;
 }

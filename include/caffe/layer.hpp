@@ -64,7 +64,7 @@ class Layer {
   virtual void ToProto(LayerParameter* param, bool write_diff = false);
 
   // Returns the layer type name.
-  virtual inline const char* LayerType() { return ""; }
+  virtual inline const char* LayerType() const { return ""; }
 
   // These methods can be overwritten to declare that this layer type expects
   // a certain number of blobs as input and output.
@@ -74,12 +74,12 @@ class Layer {
   // number to require a minimum and/or maximum number of blobs.
   // If Exact is specified, neither Min nor Max should be specified, and vice
   // versa.  These methods may not rely on SetUp having been called.
-  virtual inline int ExactNumBottomBlobs() { return -1; }
-  virtual inline int MinBottomBlobs() { return -1; }
-  virtual inline int MaxBottomBlobs() { return -1; }
-  virtual inline int ExactNumTopBlobs() { return -1; }
-  virtual inline int MinTopBlobs() { return -1; }
-  virtual inline int MaxTopBlobs() { return -1; }
+  virtual inline int ExactNumBottomBlobs() const { return -1; }
+  virtual inline int MinBottomBlobs() const { return -1; }
+  virtual inline int MaxBottomBlobs() const { return -1; }
+  virtual inline int ExactNumTopBlobs() const { return -1; }
+  virtual inline int MinTopBlobs() const { return -1; }
+  virtual inline int MaxTopBlobs() const { return -1; }
 
   virtual void CheckBlobCounts(const vector<Blob<Dtype>*>& bottom,
                                const vector<Blob<Dtype>*>& top) {
@@ -145,10 +145,18 @@ class Layer {
   //     ! BackwardReusesTopDiff(i)
   //     for each consumer_layer taking my top blob i as their bottom blob j:
   //       ! consumer_layer-> force_no_overwrite_bottom_diff(j)
-  virtual inline bool ForwardReusesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardReusesTopDiff(int top_index) { return true; }
-  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
-  virtual inline bool BackwardUsesTopData(int top_index) { return true; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardReusesTopDiff(int top_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) const {
+    return true;
+  }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
 
   // ElementwiseOnlyComputation should return true if and only if all of this
   // layer's top and bottom blobs have the same count, and for any feature index
@@ -156,7 +164,7 @@ class Layer {
   // in neuron layers.  This function is used by the GradientChecker -- if
   // overridden to true, we can shortcut most of the computation (and check
   // that the layer indeed performs element-wise computation).
-  virtual inline bool ElementwiseOnlyComputation() { return false; }
+  virtual inline bool ElementwiseOnlyComputation() const { return false; }
 
   inline void set_param_propagate_down(int index, bool value) {
     if (param_propagate_down_.size() <= index) {
