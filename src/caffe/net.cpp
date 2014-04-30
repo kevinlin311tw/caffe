@@ -114,7 +114,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   bottom_need_backward_.resize(num_layers);
   top_vecs_.resize(num_layers);
   top_id_vecs_.resize(num_layers);
-  for (int layer_id = 0; layer_id < param.layers_size(); ++layer_id) {
+  for (int layer_id = 0; layer_id < num_layers; ++layer_id) {
     bottom_vecs_[layer_id].clear();
     bottom_id_vecs_[layer_id].clear();
     bottom_diff_scales_[layer_id].clear();
@@ -244,7 +244,8 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
         blob_need_backward_[top_id_vecs_[layer_id][j]] = true;
       }
     } else {
-      LOG(INFO) << layer_names_[layer_id] << " does not need backward computation.";
+      LOG(INFO) << layer_names_[layer_id]
+                << " does not need backward computation.";
     }
   }
   // In the end, all remaining blobs are considered output blobs.

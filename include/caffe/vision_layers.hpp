@@ -453,9 +453,13 @@ class HDF5OutputLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void SaveBlobs();
 
   std::string file_name_;
@@ -572,10 +576,13 @@ class ImageDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
-
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void ShuffleImages();
 
   virtual void CreatePrefetchThread();
@@ -975,9 +982,13 @@ class WindowDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
 
   virtual void CreatePrefetchThread();
   virtual void JoinPrefetchThread();
