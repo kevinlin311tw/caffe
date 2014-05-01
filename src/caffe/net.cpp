@@ -322,12 +322,13 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
     // Decide if we can do in-place computation for the data.
     bool in_place_data = true;
     const int num_bottom = bottom_vecs_[layer_id].size();
-    const int bottom_blob_id = bottom_id_vecs_[layer_id][top_id];
+    int bottom_blob_id = -1;
     if (top_id >= num_bottom ||
         layers_[layer_id]->ForwardReusesBottomData(top_id) ||
         layers_[layer_id]->BackwardUsesBottomData(top_id)) {
       in_place_data = false;
     } else {
+      bottom_blob_id = bottom_id_vecs_[layer_id][top_id];
       const pair<int, int>& producer_index = blob_top_index_[bottom_blob_id];
       const Layer<Dtype>& producer_layer = *layers_[producer_index.first];
       const int producer_top_id = producer_index.second;
@@ -337,6 +338,7 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
     }
     if (in_place_data) {
       LOG(INFO) << "Doing in-place forward computation.";
+      CHECK_GE(bottom_blob_id, 0);
       blobs_[blob_id]->ShareData(*blobs_[bottom_blob_id]);
     }
     // Decide if we can do in-place computation for the diff.
