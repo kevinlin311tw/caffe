@@ -48,6 +48,19 @@ class GradientChecker {
   void CheckGradientSingle(Layer<Dtype>* layer, vector<Blob<Dtype>*>* bottom,
       vector<Blob<Dtype>*>* top, int check_bottom, int top_id, int top_data_id);
 
+  // Run the forward pass with in-place computation; check that the result is
+  // the same as the non-in-place result (which must have already been computed
+  // in top).
+  void CheckForwardInPlace(Layer<Dtype>* layer, vector<Blob<Dtype>*>* bottom,
+      vector<Blob<Dtype>*>* top, int check_bottom, Dtype computed_objective);
+
+  // Run the backward pass with in-place computation; check that the result is
+  // the same as the non-in-place result (which must have already been computed
+  // in bottom).
+  void CheckBackwardInPlace(Layer<Dtype>* layer, vector<Blob<Dtype>*>* bottom,
+      vector<Blob<Dtype>*>* top, const vector<bool>& propagate_down,
+      int check_bottom);
+
   // Checks the gradient of a network. This network should not have any data
   // layers or loss layers, since the function does not explicitly deal with
   // such cases yet. All input blobs and parameter blobs are going to be
@@ -64,6 +77,87 @@ class GradientChecker {
   Dtype kink_;
   Dtype kink_range_;
 };
+
+
+template <typename Dtype>
+void GradientChecker<Dtype>::CheckForwardInPlace(Layer<Dtype>* layer,
+    vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top,
+    int check_bottom, Dtype computed_objective) {
+  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
+  vector<Blob<Dtype>*> backup_top(top->size());
+  vector<bool> need_restore(min(bottom->size(), top->size()), false);
+  bool check_forward_in_place = false;
+  for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+    if ((check_bottom < 0 || i == check_bottom) &&
+        ((*top)[i]->count() == (*bottom)[i]->count()) &&
+        !layer->ForwardReusesBottomData(i)) {
+      backup_bottom[i].reset(new Blob<Dtype>());
+      const bool copy_diff = false;
+      const bool reshape = true;
+      backup_bottom[i]->CopyFrom(*(*bottom)[i], copy_diff, reshape);
+      backup_top[i] = (*top)[i];
+      (*top)[i] = (*bottom)[i];
+      need_restore[i] = true;
+      check_forward_in_place = true;
+    }
+  }
+  if (check_forward_in_place) {
+    Caffe::set_random_seed(seed_);
+    Dtype in_place_objective = layer->Forward(*bottom, top);
+    EXPECT_EQ(computed_objective, in_place_objective);
+    for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+      if (need_restore[i]) {
+        const Dtype* orig_top_data = backup_top[i]->cpu_data();
+        const Dtype* in_place_top_data = (*top)[i]->cpu_data();
+        for (int j = 0; j < (*top)[i]->count(); ++j) {
+          EXPECT_EQ(orig_top_data[j], in_place_top_data[j]);
+        }
+        (*top)[i] = backup_top[i];
+        (*bottom)[i]->CopyFrom(*backup_bottom[i]);
+      }
+    }
+  }
+}
+
+
+template <typename Dtype>
+void GradientChecker<Dtype>::CheckBackwardInPlace(Layer<Dtype>* layer,
+    vector<Blob<Dtype>*>* bottom, vector<Blob<Dtype>*>* top,
+    const vector<bool>& propagate_down, int check_bottom) {
+  vector<shared_ptr<Blob<Dtype> > > backup_top(top->size());
+  vector<Blob<Dtype>*> backup_bottom(bottom->size());
+  vector<bool> need_restore(min(bottom->size(), top->size()), false);
+  bool check_backward_in_place = false;
+  for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+    if ((check_bottom < 0 || i == check_bottom) &&
+        ((*top)[i]->count() == (*bottom)[i]->count()) &&
+        !layer->BackwardReusesTopDiff(i)) {
+      backup_top[i].reset(new Blob<Dtype>());
+      const bool copy_diff = false;
+      const bool reshape = true;
+      backup_top[i]->CopyFrom(*(*top)[i], copy_diff, reshape);
+      backup_bottom[i] = (*bottom)[i];
+      (*bottom)[i] = (*top)[i];
+      need_restore[i] = true;
+      check_backward_in_place = true;
+    }
+  }
+  if (check_backward_in_place) {
+    Caffe::set_random_seed(seed_);
+    layer->Backward(*top, propagate_down, bottom);
+    for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+      if (need_restore[i]) {
+        const Dtype* orig_bottom_diff = backup_bottom[i]->cpu_diff();
+        const Dtype* in_place_bottom_diff = (*bottom)[i]->cpu_diff();
+        for (int j = 0; j < (*bottom)[i]->count(); ++j) {
+          EXPECT_EQ(orig_bottom_diff[j], in_place_bottom_diff[j]);
+        }
+        (*bottom)[i] = backup_bottom[i];
+        (*top)[i]->CopyFrom(*backup_top[i]);
+      }
+    }
+  }
+}
 
 
 template <typename Dtype>
@@ -125,40 +219,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   Dtype computed_objective = layer->Forward(*bottom, top);
   // If the layer claims not to reuse its bottom data in forward, verify this
   // by doing in-place computation and checking that we get the same result.
-  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
-  vector<Blob<Dtype>*> backup_top(top->size());
-  vector<bool> need_restore(min(bottom->size(), top->size()), false);
-  bool check_forward_in_place = false;
-  for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
-    if ((check_bottom < 0 || i == check_bottom) &&
-        ((*top)[i]->count() == (*bottom)[i]->count()) &&
-        !layer->ForwardReusesBottomData(i)) {
-      backup_bottom[i].reset(new Blob<Dtype>());
-      const bool copy_diff = false;
-      const bool reshape = true;
-      backup_bottom[i]->CopyFrom(*(*bottom)[i], copy_diff, reshape);
-      backup_top[i] = (*top)[i];
-      (*top)[i] = (*bottom)[i];
-      need_restore[i] = true;
-      check_forward_in_place = true;
-    }
-  }
-  if (check_forward_in_place) {
-    Caffe::set_random_seed(seed_);
-    Dtype in_place_objective = layer->Forward(*bottom, top);
-    EXPECT_EQ(computed_objective, in_place_objective);
-    for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
-      if (need_restore[i]) {
-        const Dtype* orig_top_data = backup_top[i]->cpu_data();
-        const Dtype* in_place_top_data = (*top)[i]->cpu_data();
-        for (int j = 0; j < (*top)[i]->count(); ++j) {
-          EXPECT_EQ(orig_top_data[j], in_place_top_data[j]);
-        }
-        (*top)[i] = backup_top[i];
-        (*bottom)[i]->CopyFrom(*backup_bottom[i]);
-      }
-    }
-  }
+  CheckForwardInPlace(layer, bottom, top, check_bottom, computed_objective);
   // Get additional loss from the objective
   computed_objective += GetObjAndGradient(top, top_id, top_data_id);
   // If the layer claims not to use its bottom and/or top data to compute its
@@ -167,6 +228,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   filler_param.set_min(-10);
   filler_param.set_max(10);
   UniformFiller<Dtype> filler(filler_param);
+  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
   for (int i = 0; i < bottom->size(); ++i) {
     if (!layer->BackwardUsesBottomData(i)) {
       // Save a copy of original bottom data before corrupting so that we
@@ -185,6 +247,9 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   }
   vector<bool> accum_down(bottom->size(), true);
   layer->AccumBackward(*top, propagate_down, accum_down, bottom);
+  // If the layer claims not to reuse its top diff in backward, verify this
+  // by doing in-place computation and checking that we get the same result.
+  CheckBackwardInPlace(layer, bottom, top, propagate_down, check_bottom);
   // Store computed gradients for all checked blobs, subtracting the noise.
   vector<shared_ptr<Blob<Dtype> > >
       computed_gradient_blobs(blobs_to_check.size());
