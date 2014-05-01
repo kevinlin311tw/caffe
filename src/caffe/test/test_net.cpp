@@ -513,10 +513,8 @@ TYPED_TEST(NetTest, TestSharedWeightsDataNet) {
 TYPED_TEST(NetTest, TestUnsharedWeightsDiffNet) {
   this->InitUnsharedWeightsNet();
   vector<Blob<TypeParam>*> bottom;
-  TypeParam loss;
-  this->net_->Forward(bottom, &loss);
+  this->net_->Forward(bottom);
   this->net_->Backward();
-  EXPECT_GT(loss, 0);
   const int count = this->net_->layers()[1]->blobs()[0]->count();
   const TypeParam* grad1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
   const TypeParam* grad2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
@@ -537,13 +535,100 @@ TYPED_TEST(NetTest, TestSharedWeightsDiffNet) {
   const TypeParam* grad1 = this->net_->layers()[1]->blobs()[0]->cpu_diff();
   const TypeParam* grad2 = this->net_->layers()[2]->blobs()[0]->cpu_diff();
   for (int i = 0; i < count; ++i) {
-//     EXPECT_FLOAT_EQ(0, grad1[i]);
-//     EXPECT_FLOAT_EQ(0, grad2[i]);
+    EXPECT_FLOAT_EQ(0, grad1[i]);
+    EXPECT_FLOAT_EQ(0, grad2[i]);
   }
 }
 
-TYPED_TEST(NetTest, TestSharedWeightsGradient) {
+TYPED_TEST(NetTest, TestSharedWeightsUpdateCPU) {
   Caffe::set_random_seed(this->seed_);
+  this->InitDiffDataSharedWeightsNet();
+  vector<Blob<TypeParam>*> bottom;
+  EXPECT_EQ(this->net_->layer_names()[1], "innerproduct1");
+  EXPECT_EQ(this->net_->layer_names()[2], "innerproduct2");
+  Blob<TypeParam>* ip1_weights = this->net_->layers()[1]->blobs()[0].get();
+  Blob<TypeParam>* ip2_weights = this->net_->layers()[2]->blobs()[0].get();
+  // Check that data blobs of shared weights share the same location in memory.
+  EXPECT_EQ(ip1_weights->cpu_data(), ip2_weights->cpu_data());
+  // Check that diff blobs of shared weights are at different locations in
+  // locations.  (The diffs should be accumulated at update time.)
+  EXPECT_NE(ip1_weights->cpu_diff(), ip2_weights->cpu_diff());
+  this->net_->Forward(bottom);
+  this->net_->Backward();
+  // Compute the expected update as the data minus the two diffs.
+  Blob<TypeParam> shared_params;
+  const bool reshape = true;
+  const bool copy_diff = false;
+  shared_params.CopyFrom(*ip1_weights, copy_diff, reshape);
+  shared_params.CopyFrom(*ip1_weights, !copy_diff, reshape);
+  const int count = ip1_weights->count();
+  // Make sure the diffs are non-trivial.
+  for (int i = 0; i < count; ++i) {
+    EXPECT_NE(0, ip1_weights->cpu_diff()[i]);
+    EXPECT_NE(0, ip2_weights->cpu_diff()[i]);
+    EXPECT_NE(ip1_weights->cpu_diff()[i], ip2_weights->cpu_diff()[i]);
+  }
+  caffe_axpy(count, TypeParam(1), ip2_weights->cpu_diff(),
+             shared_params.mutable_cpu_diff());
+  caffe_axpy(count, TypeParam(-1), shared_params.cpu_diff(),
+             shared_params.mutable_cpu_data());
+  const TypeParam* expected_updated_params = shared_params.cpu_data();
+  this->net_->Update();
+  const TypeParam* actual_updated_params = ip1_weights->cpu_data();
+  for (int i = 0; i < count; ++i) {
+    EXPECT_EQ(expected_updated_params[i], actual_updated_params[i]);
+  }
+  // Check that data blobs of shared weights STILL point to the same memory
+  // location (because ... who knows).
+  EXPECT_EQ(ip1_weights->cpu_data(), ip2_weights->cpu_data());
+
+  Caffe::set_random_seed(this->seed_);
+  this->InitDiffDataUnsharedWeightsNet();
+  EXPECT_EQ(this->net_->layer_names()[1], "innerproduct1");
+  EXPECT_EQ(this->net_->layer_names()[2], "innerproduct2");
+  ip1_weights = this->net_->layers()[1]->blobs()[0].get();
+  ip2_weights = this->net_->layers()[2]->blobs()[0].get();
+  // Check that data and diff blobs of unshared weights are at different
+  // locations in memory.
+  EXPECT_NE(ip1_weights->cpu_data(), ip2_weights->cpu_data());
+  EXPECT_NE(ip1_weights->cpu_diff(), ip2_weights->cpu_diff());
+  this->net_->Forward(bottom);
+  this->net_->Backward();
+  // Compute the expected update.
+  Blob<TypeParam> unshared_params1;
+  unshared_params1.CopyFrom(*ip1_weights, copy_diff, reshape);
+  unshared_params1.CopyFrom(*ip1_weights, !copy_diff, reshape);
+  Blob<TypeParam> unshared_params2;
+  unshared_params2.CopyFrom(*ip2_weights, copy_diff, reshape);
+  unshared_params2.CopyFrom(*ip2_weights, !copy_diff, reshape);
+  // Make sure the diffs are non-trivial and sum to the diff in the shared net.
+  for (int i = 0; i < count; ++i) {
+    EXPECT_NE(0, ip1_weights->cpu_diff()[i]);
+    EXPECT_NE(0, ip2_weights->cpu_diff()[i]);
+    EXPECT_NE(ip1_weights->cpu_diff()[i], ip2_weights->cpu_diff()[i]);
+    EXPECT_EQ(ip1_weights->cpu_diff()[i] + ip2_weights->cpu_diff()[i],
+              shared_params.cpu_diff()[i]);
+  }
+  caffe_axpy(count, TypeParam(-1), ip1_weights->cpu_diff(),
+             unshared_params1.mutable_cpu_data());
+  caffe_axpy(count, TypeParam(-1), ip2_weights->cpu_diff(),
+             unshared_params2.mutable_cpu_data());
+  const TypeParam* expected_updated_params1 = unshared_params1.cpu_data();
+  const TypeParam* expected_updated_params2 = unshared_params2.cpu_data();
+  this->net_->Update();
+  const TypeParam* actual_updated_params1 = ip1_weights->cpu_data();
+  const TypeParam* actual_updated_params2 = ip2_weights->cpu_data();
+  for (int i = 0; i < count; ++i) {
+    EXPECT_EQ(expected_updated_params1[i], actual_updated_params1[i]);
+    EXPECT_EQ(expected_updated_params2[i], actual_updated_params2[i]);
+    EXPECT_NE(actual_updated_params1[i], actual_updated_params2[i]);
+    EXPECT_NE(expected_updated_params, expected_updated_params1);
+  }
+}
+
+TYPED_TEST(NetTest, TestSharedWeightsUpdateGPU) {
+  Caffe::set_random_seed(this->seed_);
+  Caffe::set_mode(Caffe::GPU);
   this->InitDiffDataSharedWeightsNet();
   vector<Blob<TypeParam>*> bottom;
   EXPECT_EQ(this->net_->layer_names()[1], "innerproduct1");
