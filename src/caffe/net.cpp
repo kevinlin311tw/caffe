@@ -581,8 +581,8 @@ void Net<Dtype>::Update() {
         caffe_add(count, this_diff, owner_diff, owner_diff);
         break;
       case Caffe::GPU:
-        this_diff = params_[i]->cpu_diff();
-        owner_diff = params_[param_owners_[i]]->mutable_cpu_diff();
+        this_diff = params_[i]->gpu_diff();
+        owner_diff = params_[param_owners_[i]]->mutable_gpu_diff();
         caffe_gpu_axpy(count, Dtype(1), this_diff, owner_diff);
         break;
       default:
