@@ -14,6 +14,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/net.hpp"
 
+using std::min;
 using std::max;
 
 namespace caffe {
@@ -91,7 +92,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
       propagate_down[i] = true;
     }
   } else {
-    CHECK(check_bottom < bottom->size());
+    CHECK_LT(check_bottom, bottom->size());
     blobs_to_check.push_back((*bottom)[check_bottom]);
     add_noise.push_back(true);
     propagate_down[check_bottom] = true;
@@ -122,11 +123,46 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
   Caffe::set_random_seed(seed_);
   // Get any loss from the layer
   Dtype computed_objective = layer->Forward(*bottom, top);
+  // If the layer claims not to reuse its bottom data in forward, verify this
+  // by doing in-place computation and checking that we get the same result.
+  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
+  vector<Blob<Dtype>*> backup_top(top->size());
+  vector<bool> need_restore(min(bottom->size(), top->size()), false);
+  bool check_forward_in_place = false;
+  for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+    if ((check_bottom < 0 || i == check_bottom) &&
+        ((*top)[i]->count() == (*bottom)[i]->count()) &&
+        !layer->ForwardReusesBottomData(i)) {
+      backup_bottom[i].reset(new Blob<Dtype>());
+      const bool copy_diff = false;
+      const bool reshape = true;
+      backup_bottom[i]->CopyFrom(*(*bottom)[i], copy_diff, reshape);
+      backup_top[i] = (*top)[i];
+      (*top)[i] = (*bottom)[i];
+      need_restore[i] = true;
+      check_forward_in_place = true;
+    }
+  }
+  if (check_forward_in_place) {
+    Caffe::set_random_seed(seed_);
+    Dtype in_place_objective = layer->Forward(*bottom, top);
+    EXPECT_EQ(computed_objective, in_place_objective);
+    for (int i = 0; i < min(bottom->size(), top->size()); ++i) {
+      if (need_restore[i]) {
+        const Dtype* orig_top_data = backup_top[i]->cpu_data();
+        const Dtype* in_place_top_data = (*top)[i]->cpu_data();
+        for (int j = 0; j < (*top)[i]->count(); ++j) {
+          EXPECT_EQ(orig_top_data[j], in_place_top_data[j]);
+        }
+        (*top)[i] = backup_top[i];
+        (*bottom)[i]->CopyFrom(*backup_bottom[i]);
+      }
+    }
+  }
   // Get additional loss from the objective
   computed_objective += GetObjAndGradient(top, top_id, top_data_id);
   // If the layer claims not to use its bottom and/or top data to compute its
   // gradient, verify this by corrupting them before running Backward.
-  vector<shared_ptr<Blob<Dtype> > > backup_bottom(bottom->size());
   FillerParameter filler_param;
   filler_param.set_min(-10);
   filler_param.set_max(10);

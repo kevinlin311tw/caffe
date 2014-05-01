@@ -47,6 +47,9 @@ class BNLLLayer : public NeuronLayer<Dtype> {
   explicit BNLLLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
   virtual inline const char* LayerType() const { return "BNLL"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -73,6 +76,9 @@ class DropoutLayer : public NeuronLayer<Dtype> {
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual inline const char* LayerType() const { return "Dropout"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -104,6 +110,9 @@ class PowerLayer : public NeuronLayer<Dtype> {
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual inline const char* LayerType() const { return "Power"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return diff_scale_ != Dtype(0) && power_ != Dtype(1);
   }
@@ -133,6 +142,9 @@ class ReLULayer : public NeuronLayer<Dtype> {
   explicit ReLULayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
   virtual inline const char* LayerType() const { return "ReLU"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -158,6 +170,9 @@ class SigmoidLayer : public NeuronLayer<Dtype> {
   explicit SigmoidLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
   virtual inline const char* LayerType() const { return "Sigmoid"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -182,6 +197,9 @@ class TanHLayer : public NeuronLayer<Dtype> {
   explicit TanHLayer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
   virtual inline const char* LayerType() const { return "TanH"; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -211,6 +229,9 @@ class AccuracyLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Accuracy"; }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -238,6 +259,9 @@ class ConcatLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Concat"; }
   virtual inline int MinNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -274,6 +298,9 @@ class ConvolutionLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Convolution"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -375,6 +402,9 @@ class DummyDataLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "DummyData"; }
   virtual inline int ExactNumBottomBlobs() const { return 0; }
   virtual inline int MinNumTopBlobs() const { return 1; }
+  virtual inline bool BackwardUsesTopData(int top_index) const {
+    return false;
+  }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -403,6 +433,9 @@ class EltwiseProductLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "EltwiseProduct"; }
   virtual inline int MinNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -434,6 +467,9 @@ class EuclideanLossLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "EuclideanLoss"; }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -464,6 +500,9 @@ class FlattenLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Flatten"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -498,6 +537,9 @@ class HDF5OutputLayer : public Layer<Dtype> {
   // TODO: no limit on the number of blobs
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -538,6 +580,9 @@ class HDF5DataLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "HDF5Data"; }
   virtual inline int ExactNumBottomBlobs() const { return 0; }
   virtual inline int ExactNumTopBlobs() const { return 2; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesTopData(int top_index) const {
     return false;
   }
@@ -711,6 +756,9 @@ class InnerProductLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "InnerProduct"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -749,6 +797,9 @@ class LRNLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "LocalResponseNorm"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return true;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -865,6 +916,9 @@ class MultinomialLogisticLossLayer : public Layer<Dtype> {
   }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
   }
@@ -892,6 +946,9 @@ class PoolingLayer : public Layer<Dtype> {
   virtual inline int ExactNumTopBlobs() const { return 1; }
   // TODO: once max-pooling uses a mask, both of these can be changed to simply
   // "return false;".
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return (this->layer_param_.pooling_param().pool() ==
             PoolingParameter_PoolMethod_MAX);
@@ -936,6 +993,9 @@ class SigmoidCrossEntropyLossLayer : public Layer<Dtype> {
   }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     // Uses label (bottom_index == 1) only.
     return static_cast<bool>(bottom_index);
@@ -969,6 +1029,9 @@ class SoftmaxLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Softmax"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }
@@ -1007,6 +1070,9 @@ class SoftmaxWithLossLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "SoftmaxLoss"; }
   virtual inline int ExactNumBottomBlobs() const { return 2; }
   virtual inline int ExactNumTopBlobs() const { return 0; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     // Uses label (bottom_index == 1) only.
     return static_cast<bool>(bottom_index);
@@ -1040,6 +1106,9 @@ class SplitLayer : public Layer<Dtype> {
   virtual inline const char* LayerType() const { return "Split"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int MinNumTopBlobs() const { return 1; }
+  virtual inline bool ForwardReusesBottomData(int bottom_index) const {
+    return false;
+  }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return false;
   }

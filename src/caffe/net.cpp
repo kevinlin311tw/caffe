@@ -323,17 +323,41 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
     bool in_place_data = true;
     const int num_bottom = bottom_vecs_[layer_id].size();
     int bottom_blob_id = -1;
+    // Check if I can't overwrite my bottom data because I reuse it in my
+    // forward pass or use it in my backward pass.
     if (top_id >= num_bottom ||
         layers_[layer_id]->ForwardReusesBottomData(top_id) ||
         layers_[layer_id]->BackwardUsesBottomData(top_id)) {
       in_place_data = false;
     } else {
+      // Lookup the ID of the blob I might overwrite, then check if I can't
+      // overwrite it because its count doesn't match mine.
       bottom_blob_id = bottom_id_vecs_[layer_id][top_id];
-      const pair<int, int>& producer_index = blob_top_index_[bottom_blob_id];
-      const Layer<Dtype>& producer_layer = *layers_[producer_index.first];
-      const int producer_top_id = producer_index.second;
-      if (producer_layer.BackwardUsesTopData(producer_top_id)) {
+      if (blobs_[bottom_blob_id]->count() != blobs_[blob_id]->count()) {
         in_place_data = false;
+      } else {
+        const pair<int, int>& producer_index = blob_top_index_[bottom_blob_id];
+        const Layer<Dtype>& producer_layer = *layers_[producer_index.first];
+        const int producer_top_id = producer_index.second;
+        if (producer_layer.BackwardUsesTopData(producer_top_id)) {
+          in_place_data = false;
+        } else {
+          // Check if I can't overwrite my bottom data because one of my
+          // siblings (i.e., another layer that takes the top blob whose data I
+          // might overwrite as a bottom blob) needs to reuse it in its forward
+          // or backward pass.
+          const vector<pair<int, int> >& sibling_blob_indices =
+              blob_bottom_indices_[bottom_blob_id];
+          for (int i = 0; i < sibling_blob_indices.size(); ++i) {
+            const int sibling_layer_id = sibling_blob_indices[i].first;
+            const Layer<Dtype>& sibling_layer = *layers_[sibling_layer_id];
+            const int sibling_top_id = sibling_blob_indices[i].second;
+            if (sibling_layer.ForwardReusesBottomData(sibling_top_id) ||
+                sibling_layer.BackwardUsesBottomData(sibling_top_id)) {
+              in_place_data = false;
+            }
+          }
+        }
       }
     }
     if (in_place_data) {
