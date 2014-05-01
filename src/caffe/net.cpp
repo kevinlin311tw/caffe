@@ -192,7 +192,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
       const int net_param_id = params_.size();
       params_.push_back(layers_[layer_id]->blobs()[param_id]);
       param_net_indices_.push_back(make_pair(layer_id, param_id));
-      if (!blob_name_size || (param_name.size() &&
+      if (!blob_name_size || !param_name.size() || (param_name.size() &&
           param_names_index_.find(param_name) == param_names_index_.end())) {
         // This layer "owns" this parameter blob -- it is either anonymous
         // (i.e., not given a param_name) or explicitly given a name that we
