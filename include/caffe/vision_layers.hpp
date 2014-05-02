@@ -120,7 +120,7 @@ class PowerLayer : public NeuronLayer<Dtype> {
     return false;
   }
   virtual inline bool BackwardReusesTopDiff(int bottom_index) const {
-    return false;
+    return diff_scale_ != Dtype(0);
   }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return diff_scale_ != Dtype(0) && power_ != Dtype(1);

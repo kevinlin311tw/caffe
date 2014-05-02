@@ -208,6 +208,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     blobs_to_check.push_back((*bottom)[check_bottom]);
     add_noise.push_back(true);
     propagate_down[check_bottom] = true;
+    blobs_to_check_bottom_inds.push_back(check_bottom);
   }
   // Add randomly generated noise to the diff of each of the bottom
   // blobs_to_check.  We will subtract this noise off after the gradient is
@@ -285,8 +286,7 @@ void GradientChecker<Dtype>::CheckGradientSingle(Layer<Dtype>* layer,
     }
     const int bottom_id = blobs_to_check_bottom_inds[blob_id];
     if (bottom_id >= 0) {
-      bottom_gradient_blobs[bottom_id] =
-          computed_gradient_blobs[blob_id].get();
+      bottom_gradient_blobs[bottom_id] = computed_gradient_blobs[blob_id].get();
     }
   }
   // Restore original bottom data for finite differencing if we corrupted it.
