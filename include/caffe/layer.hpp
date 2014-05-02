@@ -344,8 +344,7 @@ void Layer<Dtype>::AccumBackward_gpu(const vector<Blob<Dtype>*>& top,
     if (accum_down[bottom_id]) {
       (*bottom)[bottom_id] = orig_bottom[bottom_id];
       const int count = (*bottom)[bottom_id]->count();
-      const Dtype* accum_diff =
-          accum_bottom_blobs_[bottom_id]->gpu_diff();
+      const Dtype* accum_diff = accum_bottom_blobs_[bottom_id]->gpu_diff();
       Dtype* diff = (*bottom)[bottom_id]->mutable_gpu_diff();
       caffe_gpu_axpy(count, Dtype(1), accum_diff, diff);
     }
