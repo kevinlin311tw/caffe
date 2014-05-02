@@ -370,7 +370,7 @@ void Net<Dtype>::SetUpInPlace(const int layer_id) {
   const int num_top = top_vecs_[layer_id].size();
   for (int top_id = 0; top_id < min(num_bottom, num_top); ++top_id) {
     // Decide if we can do in-place computation for the data.
-    const int blob_id = bottom_id_vecs_[layer_id][top_id];
+    const int blob_id = top_id_vecs_[layer_id][top_id];
     bool in_place_data = true;
     const int num_bottom = bottom_vecs_[layer_id].size();
     int bottom_blob_id = -1;
