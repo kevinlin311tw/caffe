@@ -119,17 +119,19 @@ class Net {
  protected:
   // Helpers for Init.
   // Append a new input or top blob to the net.
-  int AppendTop(const NetParameter& param, const int layer_index,
-      const int top_index);
+  int AppendTop(const NetParameter& param, const int layer_id,
+      const int top_id);
   // Append a new bottom blob to the net.
-  int AppendBottom(const NetParameter& param, const int layer_index,
-      const int bottom_index);
+  int AppendBottom(const NetParameter& param, const int layer_id,
+      const int bottom_id);
+  // Decide whether to do forward/backward computation "in-place".
+  void SetUpInPlace(const int layer_id);
   // Function to get misc parameters, e.g. the learning rate multiplier and
   // weight decay.
   void GetLearningRateAndWeightDecay();
   // Make a unique internal blob name from a non-unique user blob name.
   void CanonicalBlobName(const size_t max_chars, const char* user_blob_name,
-      const char* layer_name, const int layer_index, const int top_blob_index,
+      const char* layer_name, const int top_blob_index, const int num_top,
       char* canonical_blob_name);
 
   // Individual layers in the net

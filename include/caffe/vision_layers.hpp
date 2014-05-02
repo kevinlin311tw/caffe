@@ -158,7 +158,10 @@ class ReLULayer : public NeuronLayer<Dtype> {
     return false;
   }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
-    return true;
+    // Technically the bottom data is used, but only to compute
+    // (bottom_data[i] > 0), and by the definition of ReLU,
+    // (bottom_data[i] > 0) <=> (top_data[i] > 0), so it's OK to swap.
+    return false;
   }
   virtual inline bool BackwardUsesTopData(int top_index) const {
     return false;

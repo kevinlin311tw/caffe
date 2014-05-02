@@ -15,6 +15,7 @@
 
 using std::make_pair;
 using std::map;
+using std::min;
 using std::ostringstream;
 using std::pair;
 using std::set;
@@ -148,6 +149,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     layers_[layer_id]->CheckBlobCounts(bottom_vecs_[layer_id],
                                        top_vecs_[layer_id]);
     layers_[layer_id]->SetUp(bottom_vecs_[layer_id], &top_vecs_[layer_id]);
+    SetUpInPlace(layer_id);
     for (int top_id = 0; top_id < top_vecs_[layer_id].size(); ++top_id) {
       LOG(INFO) << "Top shape: " << top_vecs_[layer_id][top_id]->num() << " "
           << top_vecs_[layer_id][top_id]->channels() << " "
@@ -319,14 +321,62 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   } else {
     top_id_vecs_[layer_id].push_back(blob_id);
     top_vecs_[layer_id].push_back(blob_pointer.get());
+  }
+  return blob_id;
+}
+
+
+// Helper for Net::Init: add a new bottom blob to the net.
+template <typename Dtype>
+int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_id,
+                             const int bottom_id) {
+  LayerParameter layer_param(param.layers(layer_id));
+  const string& user_blob_name = layer_param.bottom(bottom_id);
+  if (user_blob_name_to_current_index_.find(user_blob_name) ==
+      user_blob_name_to_current_index_.end()) {
+    LOG(FATAL) << "Unknown blob input " << user_blob_name
+               << " to layer " << layer_id;
+  }
+  const int blob_id = user_blob_name_to_current_index_[user_blob_name];
+  const string& blob_name = blob_names_[blob_id];
+  ostringstream canonical_blob_name_display;
+  if (blob_name != user_blob_name) {
+    canonical_blob_name_display << " (" << blob_name << ")";
+  }
+  LOG(INFO) << layer_param.name() << " <- " << user_blob_name
+            << canonical_blob_name_display.str();
+  bottom_vecs_[layer_id].push_back(blobs_[blob_id].get());
+  bottom_id_vecs_[layer_id].push_back(blob_id);
+  const int current_num_consumers = blob_bottom_indices_[blob_id].size();
+  blob_bottom_indices_[blob_id].push_back(make_pair(layer_id, bottom_id));
+  if (current_num_consumers) {
+    // This isn't the first consumer of this blob; accumulate its gradients.
+    bottom_diff_scales_[layer_id].push_back(1);
+  } else {
+    // This is the first time this blob has been consumed; zero it out
+    // before computing the diff.
+    bottom_diff_scales_[layer_id].push_back(0);
+  }
+  available_blobs_.erase(blob_id);
+  bool need_backward = param.force_backward() || blob_need_backward_[blob_id];
+  bottom_need_backward_[layer_id].push_back(need_backward);
+  return blob_id;
+}
+
+
+template <typename Dtype>
+void Net<Dtype>::SetUpInPlace(const int layer_id) {
+  const int num_bottom = bottom_vecs_[layer_id].size();
+  const int num_top = top_vecs_[layer_id].size();
+  for (int top_id = 0; top_id < min(num_bottom, num_top); ++top_id) {
     // Decide if we can do in-place computation for the data.
+    const int blob_id = bottom_id_vecs_[layer_id][top_id];
     bool in_place_data = true;
     const int num_bottom = bottom_vecs_[layer_id].size();
     int bottom_blob_id = -1;
     // Check if I can't overwrite my bottom data because I reuse it in my
     // forward pass or use it in my backward pass.
-    if (top_id >= num_bottom ||
-        layers_[layer_id]->ForwardReusesBottomData(top_id) ||
+    if (layers_[layer_id]->ForwardReusesBottomData(top_id) ||
         layers_[layer_id]->BackwardUsesBottomData(top_id)) {
       in_place_data = false;
     } else {
@@ -384,45 +434,6 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
       blobs_[blob_id]->ShareDiff(*blobs_[bottom_blob_id]);
     }
   }
-  return blob_id;
-}
-
-
-// Helper for Net::Init: add a new bottom blob to the net.
-template <typename Dtype>
-int Net<Dtype>::AppendBottom(const NetParameter& param, const int layer_id,
-                             const int bottom_id) {
-  LayerParameter layer_param(param.layers(layer_id));
-  const string& user_blob_name = layer_param.bottom(bottom_id);
-  if (user_blob_name_to_current_index_.find(user_blob_name) ==
-      user_blob_name_to_current_index_.end()) {
-    LOG(FATAL) << "Unknown blob input " << user_blob_name
-               << " to layer " << layer_id;
-  }
-  const int blob_id = user_blob_name_to_current_index_[user_blob_name];
-  const string& blob_name = blob_names_[blob_id];
-  ostringstream canonical_blob_name_display;
-  if (blob_name != user_blob_name) {
-    canonical_blob_name_display << " (" << blob_name << ")";
-  }
-  LOG(INFO) << layer_param.name() << " <- " << user_blob_name
-            << canonical_blob_name_display.str();
-  bottom_vecs_[layer_id].push_back(blobs_[blob_id].get());
-  bottom_id_vecs_[layer_id].push_back(blob_id);
-  const int current_num_consumers = blob_bottom_indices_[blob_id].size();
-  blob_bottom_indices_[blob_id].push_back(make_pair(layer_id, bottom_id));
-  if (current_num_consumers) {
-    // This isn't the first consumer of this blob; accumulate its gradients.
-    bottom_diff_scales_[layer_id].push_back(1);
-  } else {
-    // This is the first time this blob has been consumed; zero it out
-    // before computing the diff.
-    bottom_diff_scales_[layer_id].push_back(0);
-  }
-  available_blobs_.erase(blob_id);
-  bool need_backward = param.force_backward() || blob_need_backward_[blob_id];
-  bottom_need_backward_[layer_id].push_back(need_backward);
-  return blob_id;
 }
 
 
