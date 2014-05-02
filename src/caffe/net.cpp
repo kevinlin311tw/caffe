@@ -370,9 +370,17 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
     if (top_id >= num_bottom ||
         layers_[layer_id]->BackwardReusesTopDiff(top_id)) {
       in_place_diff = false;
+    } else {
+      if (bottom_blob_id < 0) {
+        bottom_blob_id = bottom_id_vecs_[layer_id][top_id];
+      }
+      if (blobs_[bottom_blob_id]->count() != blobs_[blob_id]->count()) {
+        in_place_diff = false;
+      }
     }
     if (in_place_diff) {
       LOG(INFO) << "Doing in-place backward computation.";
+      CHECK_GE(bottom_blob_id, 0);
       blobs_[blob_id]->ShareDiff(*blobs_[bottom_blob_id]);
     }
   }
