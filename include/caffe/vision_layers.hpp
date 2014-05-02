@@ -336,6 +336,9 @@ class DummyDataLayer : public Layer<Dtype> {
   virtual ~DummyDataLayer() {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
+  virtual inline const char* LayerType() { return "DummyData"; }
+  virtual inline int ExactNumBottomBlobs() { return 0; }
+  virtual inline int MinNumTopBlobs() { return 1; }
 
  protected:
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -744,6 +747,10 @@ class MemoryDataLayer : public Layer<Dtype> {
       : Layer<Dtype>(param) {}
   virtual void SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
+  virtual inline const char* LayerType() { return "MemoryData"; }
+  virtual inline int ExactNumBottomBlobs() { return 0; }
+  virtual inline int ExactNumTopBlobs() { return 2; }
+  virtual inline bool BackwardUsesBottomData(int bottom_index) { return true; }
   // Reset should accept const pointers, but can't, because the memory
   //  will be given to Blob, which is mutable
   void Reset(Dtype* data, Dtype* label, int n);
@@ -756,9 +763,13 @@ class MemoryDataLayer : public Layer<Dtype> {
   virtual Dtype Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-      const bool propagate_down, vector<Blob<Dtype>*>* bottom) { return; }
+      const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
+    return;
+  }
 
   Dtype* data_;
   Dtype* labels_;

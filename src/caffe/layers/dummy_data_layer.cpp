@@ -11,7 +11,6 @@ namespace caffe {
 template <typename Dtype>
 void DummyDataLayer<Dtype>::SetUp(const vector<Blob<Dtype>*>& bottom,
       vector<Blob<Dtype>*>* top) {
-  CHECK_EQ(bottom.size(), 0) << "DummyData Layer takes no input blobs.";
   const int num_top = top->size();
   CHECK_GE(num_top, 1)
       << "DummyData Layer produces at least one blob as output.";
