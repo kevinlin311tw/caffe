@@ -799,7 +799,7 @@ class InnerProductLayer : public Layer<Dtype> {
     return false;
   }
   virtual inline bool BackwardReusesTopDiff(int bottom_index) const {
-    return false;
+    return true;
   }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
     return true;
