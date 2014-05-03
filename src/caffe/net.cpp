@@ -390,7 +390,8 @@ void Net<Dtype>::SetUpInPlace(const int layer_id) {
         const pair<int, int>& producer_index = blob_top_index_[bottom_blob_id];
         const Layer<Dtype>& producer_layer = *layers_[producer_index.first];
         const int producer_top_id = producer_index.second;
-        if (producer_layer.BackwardUsesTopData(producer_top_id)) {
+        if (producer_layer.BackwardUsesTopData(producer_top_id) &&
+            !producer_layer.TopDataOverwriteOK(*layers_[layer_id])) {
           in_place_data = false;
         } else {
           // Check if I can't overwrite my bottom data because one of my

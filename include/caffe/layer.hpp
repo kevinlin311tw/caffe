@@ -135,9 +135,8 @@ class Layer {
   // if all of these conditions hold:
   //     ! ForwardReusesBottomData(i)
   //     ! BackwardUsesBottomData(i)
-  //     ! producer_layer->BackwardUsesTopData(j) // where producer_layer
-  //         // is a pointer to the layer producing the source for my input
-  //         // bottom blob i as its top blob j
+  //     (! producer_layer->BackwardUsesTopData(j)) ||
+  //         producer_layer->TopDataOverwriteOK(this_layer)
   //     ! producer_layer->force_no_overwrite_top_data(i)
   // Furthermore, we will do Backward in-place computation at index i --
   // overwriting top blob i's diff with botttom blob i's diff -- if all of these
@@ -156,6 +155,16 @@ class Layer {
   }
   virtual inline bool BackwardUsesTopData(int top_index) const {
     return true;
+  }
+  // Make an exception to the above rules from BackwardUsesTopData.  For
+  // example, the ReLU Layer does use its top data in its backward pass, so its
+  // BackwardUsesTopData always returns true.  However, if the above layer is a
+  // Dropout Layer, the dropout layer can still perform its forward pass in
+  // place without corrupting the gradient computed by the backward pass of
+  // the ReLU Layer.
+  virtual inline bool TopDataOverwriteOK(const Layer<Dtype>& above_layer)
+      const {
+    return false;
   }
 
   // ElementwiseOnlyComputation should return true if and only if all of this
