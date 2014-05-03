@@ -158,12 +158,17 @@ class ReLULayer : public NeuronLayer<Dtype> {
     return false;
   }
   virtual inline bool BackwardUsesBottomData(int bottom_index) const {
-    // Technically the bottom data is used, but only to compute
-    // (bottom_data[i] > 0), and by the definition of ReLU,
-    // (bottom_data[i] > 0) <=> (top_data[i] > 0), so it's OK to swap.
     return false;
   }
   virtual inline bool BackwardUsesTopData(int top_index) const {
+    return true;
+  }
+  // Special exception for a dropout layer after ReLU: it's safe for the dropout
+  // layer to do its forward computation in-place, overwriting ReLU top data.
+  virtual inline bool TopDataOverwriteOK(const Layer<Dtype>& above_layer) {
+    if (above_layer.LayerType() == "Dropout") {
+      return true;
+    }
     return false;
   }
 

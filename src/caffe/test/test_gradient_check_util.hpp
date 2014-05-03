@@ -151,7 +151,6 @@ void GradientChecker<Dtype>::CheckBackwardInPlace(Layer<Dtype>* layer,
     }
     for (int i = 0; i < top->size(); ++i) {
       temp_top[i].reset(new Blob<Dtype>());
-      temp_top[i]->CopyFrom(*(*top)[i], copy_diff, reshape);
       temp_pointers_top[i] = temp_top[i].get();
     }
     Caffe::set_random_seed(seed_);
