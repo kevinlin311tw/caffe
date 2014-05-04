@@ -120,10 +120,10 @@ class Net {
   // Helpers for Init.
   // Append a new input or top blob to the net.
   int AppendTop(const NetParameter& param, const int layer_id,
-      const int top_id);
+                const int top_id, Net<Dtype>* memory_share_net);
   // Append a new bottom blob to the net.
   int AppendBottom(const NetParameter& param, const int layer_id,
-      const int bottom_id);
+                   const int bottom_id);
   // Decide whether to do forward/backward computation "in-place".
   void SetUpInPlace(const int layer_id);
   // Function to get misc parameters, e.g. the learning rate multiplier and

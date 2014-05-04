@@ -105,7 +105,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
       << "Incorrect bottom blob dimension specifications.";
   for (int top_id = 0; top_id < param.input_size(); ++top_id) {
     const int layer_id = -1;  // inputs have fake layer ID -1
-    AppendTop(param, layer_id, top_id);
+    AppendTop(param, layer_id, top_id, memory_share_net);
   }
   DLOG(INFO) << "Memory required for input: " << memory_used_ * sizeof(Dtype);
   // Set up the input and output for each layer.
@@ -143,7 +143,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
     }
     // Go through the layer's outputs
     for (int top_id = 0; top_id < layer_param.top_size(); ++top_id) {
-      AppendTop(param, layer_id, top_id);
+      AppendTop(param, layer_id, top_id, memory_share_net);
     }
     // After this layer is connected, set it up.
     // LOG(INFO) << "Setting up " << layer_names_[layer_id];
@@ -270,18 +270,8 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
 // layer_id == -1, tops have layer_id >= 0.)
 template <typename Dtype>
 int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
-                          const int top_id) {
-  shared_ptr<Blob<Dtype> > blob_pointer;
-  if (layer_id == -1) {
-    blob_pointer.reset(new Blob<Dtype>(param.input_dim(top_id * 4),
-                                       param.input_dim(top_id * 4 + 1),
-                                       param.input_dim(top_id * 4 + 2),
-                                       param.input_dim(top_id * 4 + 3)));
-  } else {
-    blob_pointer.reset(new Blob<Dtype>());
-  }
+                          const int top_id, Net<Dtype>* memory_share_net) {
   const int blob_id = blobs_.size();
-  blobs_.push_back(blob_pointer);
   string user_blob_name;
   const LayerParameter& layer_param = param.layers(layer_id);
   if (layer_id == -1) {
@@ -308,6 +298,22 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   }
   LOG(INFO) << layer_param.name() << " -> " << user_blob_name
             << canonical_blob_name_display.str();
+  shared_ptr<Blob<Dtype> > blob_pointer;
+  if (layer_id == -1) {
+    blob_pointer.reset(new Blob<Dtype>(param.input_dim(top_id * 4),
+                                       param.input_dim(top_id * 4 + 1),
+                                       param.input_dim(top_id * 4 + 2),
+                                       param.input_dim(top_id * 4 + 3)));
+  } else {
+    if (memory_share_net && memory_share_net->has_blob(blob_name)) {
+      shared_ptr<Blob<Dtype> > memory_share_blob =
+          memory_share_net->blob_by_name(blob_name);
+      blob_pointer.reset(new Blob<Dtype>(*memory_share_blob));
+    } else {
+      blob_pointer.reset(new Blob<Dtype>());
+    }
+  }
+  blobs_.push_back(blob_pointer);
   blob_names_.push_back(blob_name);
   user_blob_name_to_current_index_[user_blob_name] = blob_id;
   blob_top_index_.push_back(make_pair(layer_id, top_id));
