@@ -160,7 +160,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
       if (!in_place)
         memory_used_ += top_vecs_[layer_id][top_id]->count();
     }
-    DLOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
+    DLOG(INFO) << "Memory required for data: " << memory_used_ * sizeof(Dtype);
     int blobs_lr_size = layer_param.blobs_lr_size();
     int num_param_blobs = layers_[layer_id]->blobs().size();
     CHECK(blobs_lr_size == num_param_blobs || blobs_lr_size == 0)
@@ -262,7 +262,7 @@ void Net<Dtype>::Init(const NetParameter& param, Net<Dtype>* memory_share_net) {
   }
   GetLearningRateAndWeightDecay();
   LOG(INFO) << "Network initialization done.";
-  LOG(INFO) << "Memory required for data: " << memory_used * sizeof(Dtype);
+  LOG(INFO) << "Memory required for data: " << memory_used_ * sizeof(Dtype);
 }
 
 
