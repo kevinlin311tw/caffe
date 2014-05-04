@@ -161,7 +161,6 @@ template <typename Dtype>
 Dtype LRNLayer<Dtype>::WithinChannelForward(
     const vector<Blob<Dtype>*>& bottom, vector<Blob<Dtype>*>* top) {
   split_top_vec_[0] = bottom[0];
-  square_bottom_vec_[0] = bottom[0];
   product_bottom_vec_[0] = bottom[0];
   split_layer_->Forward(bottom, &split_top_vec_);
   square_layer_->Forward(square_bottom_vec_, &square_top_vec_);
@@ -174,15 +173,17 @@ Dtype LRNLayer<Dtype>::WithinChannelForward(
 template <typename Dtype>
 void LRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, vector<Blob<Dtype>*>* bottom) {
-  switch (this->layer_param_.lrn_param().norm_region()) {
-  case LRNParameter_NormRegion_ACROSS_CHANNELS:
-    CrossChannelBackward_cpu(top, propagate_down, bottom);
-    break;
-  case LRNParameter_NormRegion_WITHIN_CHANNEL:
-    WithinChannelBackward(top, propagate_down, bottom);
-    break;
-  default:
-    LOG(FATAL) << "Unknown normalization region.";
+  if (propagate_down[0]) {
+    switch (this->layer_param_.lrn_param().norm_region()) {
+    case LRNParameter_NormRegion_ACROSS_CHANNELS:
+      CrossChannelBackward_cpu(top, propagate_down, bottom);
+      break;
+    case LRNParameter_NormRegion_WITHIN_CHANNEL:
+      WithinChannelBackward(top, propagate_down, bottom);
+      break;
+    default:
+      LOG(FATAL) << "Unknown normalization region.";
+    }
   }
 }
 
@@ -245,18 +246,14 @@ template <typename Dtype>
 void LRNLayer<Dtype>::WithinChannelBackward(
     const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down,
     vector<Blob<Dtype>*>* bottom) {
-  if (propagate_down[0]) {
-    vector<bool> product_down(2, true);
-    product_bottom_vec_[0] = (*bottom)[0];
-    square_bottom_vec_[0] = (*bottom)[0];
-    split_top_vec_[0] = (*bottom)[0];
-    product_layer_->Backward(top, product_down, &product_bottom_vec_);
-    power_layer_->Backward(power_top_vec_, propagate_down, &pool_top_vec_);
-    pool_layer_->Backward(pool_top_vec_, propagate_down, &square_top_vec_);
-    square_layer_->Backward(square_top_vec_, propagate_down,
-                            &square_bottom_vec_);
-    split_layer_->Backward(split_top_vec_, propagate_down, bottom);
-  }
+  product_bottom_vec_[0] = (*bottom)[0];
+  split_top_vec_[0] = (*bottom)[0];
+  vector<bool> product_down(2, true);
+  product_layer_->Backward(top, product_down, &product_bottom_vec_);
+  power_layer_->Backward(power_top_vec_, propagate_down, &pool_top_vec_);
+  pool_layer_->Backward(pool_top_vec_, propagate_down, &square_top_vec_);
+  square_layer_->Backward(square_top_vec_, propagate_down, &square_bottom_vec_);
+  split_layer_->Backward(split_top_vec_, propagate_down, bottom);
 }
 
 INSTANTIATE_CLASS(LRNLayer);
