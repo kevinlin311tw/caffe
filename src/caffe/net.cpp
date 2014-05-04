@@ -282,21 +282,21 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
   user_blob_names_.push_back(user_blob_name);
   string blob_name;
   ostringstream canonical_blob_name_display;
+  string layer_name;
   if (user_blob_name_to_current_index_.find(user_blob_name) ==
       user_blob_name_to_current_index_.end()) {
     // First occurrence of this user_blob_name -- let the canonical name simply
     // be user_blob_name.
     blob_name = user_blob_name;
   } else {
-    string layer_name = (layer_id == -1) ?
-                        kInputLayerName : layer_param.name();
+    layer_name = (layer_id == -1) ?  kInputLayerName : layer_param.name();
     char* blob_name_c_str = new char[kMaxBlobNameChars];
     CanonicalBlobName(kMaxBlobNameChars, user_blob_name.c_str(),
         layer_name.c_str(), top_id, layer_param.top_size(), blob_name_c_str);
     blob_name = blob_name_c_str;
     canonical_blob_name_display << " (" << blob_name << ")";
   }
-  LOG(INFO) << layer_param.name() << " -> " << user_blob_name
+  LOG(INFO) << layer_name << " -> " << user_blob_name
             << canonical_blob_name_display.str();
   shared_ptr<Blob<Dtype> > blob_pointer;
   if (layer_id == -1) {
