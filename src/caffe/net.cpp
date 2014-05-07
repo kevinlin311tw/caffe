@@ -273,26 +273,27 @@ int Net<Dtype>::AppendTop(const NetParameter& param, const int layer_id,
                           const int top_id, Net<Dtype>* memory_share_net) {
   const int blob_id = blobs_.size();
   string user_blob_name;
-  const LayerParameter& layer_param = param.layers(layer_id);
   if (layer_id == -1) {
     user_blob_name = param.input(top_id);
   } else {
-    user_blob_name = layer_param.top(top_id);
+    user_blob_name = param.layers(layer_id).top(top_id);
   }
   user_blob_names_.push_back(user_blob_name);
   string blob_name;
   ostringstream canonical_blob_name_display;
-  string layer_name;
+  string layer_name = (layer_id == -1) ?
+      kInputLayerName : param.layers(layer_id).name();
   if (user_blob_name_to_current_index_.find(user_blob_name) ==
       user_blob_name_to_current_index_.end()) {
     // First occurrence of this user_blob_name -- let the canonical name simply
     // be user_blob_name.
     blob_name = user_blob_name;
   } else {
-    layer_name = (layer_id == -1) ?  kInputLayerName : layer_param.name();
     char* blob_name_c_str = new char[kMaxBlobNameChars];
+    const int num_top = (layer_id == -1) ?
+        param.input_size() : param.layers(layer_id).top_size();
     CanonicalBlobName(kMaxBlobNameChars, user_blob_name.c_str(),
-        layer_name.c_str(), top_id, layer_param.top_size(), blob_name_c_str);
+        layer_name.c_str(), top_id, num_top, blob_name_c_str);
     blob_name = blob_name_c_str;
     canonical_blob_name_display << " (" << blob_name << ")";
   }
